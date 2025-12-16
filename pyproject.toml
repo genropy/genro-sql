@@ -1,6 +1,6 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [project]
 name = "genro-sql"
@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "SQL database abstraction layer for Genro framework with ORM, migrations, and triggers"
 authors = [{name = "Genropy Team"}]
 readme = "README.md"
-license = {text = "MIT"}
+license = "Apache-2.0"
 requires-python = ">=3.10"
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -46,9 +46,8 @@ Issues = "https://github.com/genropy/genro-sql/issues"
 [project.entry-points."genro.cli"]
 db = "genro_sql.cli:DbCommands"
 
-[tool.setuptools.packages.find]
-where = ["."]
-include = ["genro_sql*"]
+[tool.hatch.build.targets.wheel]
+packages = ["src/genro_sql"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
