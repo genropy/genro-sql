@@ -1,61 +1,47 @@
 # Genro SQL
 
-SQL database abstraction layer for the Genro framework.
+SQL model builder for the Genro framework — describe databases,
+schemas, tables and columns in Python through a
+[genro-builders](https://github.com/genropy/genro-builders) dialect,
+and project the model tree into DDL, migrations and (later) query
+compilation.
 
-## Features
+**Status**: Alpha — full rewrite in progress. The model source tree is
+the single pivot: DDL rendering (partial or total), the migration
+projection (genro-sqlmigration) and the round-trip (reader from a live
+database, emitter to idiomatic Python) are all projections from/to the
+same tree. The previous experimental ORM (GenroMicroDb) has been
+removed; it remains available in git history.
 
-- **Database Adapters**: Support for SQLite, PostgreSQL (extensible)
-- **ORM**: Type-safe table definitions with dataclass-based columns
-- **Migrations**: Automatic schema migrations
-- **Triggers**: Event-based triggers (onInserting, onInserted, onUpdating, etc.)
-- **Query Compiler**: Genropy-style query syntax with `$field` and `:param`
-- **Environment System**: Thread-local context for passing data through trigger chains
-- **Trigger Stack**: Automatic prevention of infinite recursion
+## Design documentation
 
-## Installation
+The rewrite is driven by the documents in [`roadmap/`](roadmap/):
+
+- [`00_INDEX.md`](roadmap/00_INDEX.md) — documentation set index
+- `01`–`04` — exhaustive inventories of the legacy engine (model
+  grammar, query compiler, migration/adapters, test suite)
+- [`05_grammar_design.md`](roadmap/05_grammar_design.md) — the grammar
+  design document: vision, agreed decisions, open questions,
+  implementation plan in slices
+
+## Layout
+
+```
+src/genro_sql/
+├── sql_builder.py    # SqlBuilder (dialect) + renderer_sql property
+├── sql_elements.py   # grammar elements (under design)
+├── sql_renderer.py   # DDL renderer (placeholder)
+└── examples/         # numbered examples (three-view format)
+```
+
+## Development
 
 ```bash
-pip install genro-sql
+pip install -e .[dev]
+pytest tests/
+ruff check src/
 ```
-
-## Quick Start
-
-```python
-from dataclasses import dataclass
-from genro_sql import GenroMicroDb, Table
-
-# Define a table
-class BookTable(Table):
-    sql_name = "books"
-    pkey = "id"
-
-    @dataclass
-    class Columns:
-        id: int
-        title: str
-        author: str
-        pages: int
-
-# Create database
-db = GenroMicroDb(name="mydb", implementation="sqlite", path="mydb.sqlite")
-db.add_table(BookTable)
-db.migrate()
-
-# Use CRUD operations
-book_id = db.tables.book.insert(record={
-    'title': 'Clean Code',
-    'author': 'Robert Martin',
-    'pages': 464
-})
-
-book = db.tables.book.get(book_id)
-```
-
-## Dependencies
-
-- `genro-core>=0.1.0` - Core utilities and decorators
-- `pydantic>=2.0.0` - Data validation
 
 ## License
 
-MIT License - see LICENSE file for details.
+Apache License 2.0 — Copyright 2025 Softwell S.r.l.

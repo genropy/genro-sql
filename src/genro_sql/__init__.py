@@ -1,22 +1,19 @@
-# Copyright (c) 2025 Softwell Srl, Milano, Italy
-# SPDX-License-Identifier: Apache-2.0
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Copyright 2025 Softwell S.r.l. - SPDX-License-Identifier: Apache-2.0
+"""genro-sql — describe a database pythonically, render it as SQL.
 
-"""Database framework for Genro."""
+A dialect of genro-builders: :class:`SqlBuilder` carries the grammar
+(db, schema, table, column, relation, index, ...), :class:`SqlRenderer`
+emits DDL from the source tree. The same tree is the pivot for the
+migration tooling (genro-sqlmigration) and, later, for the round-trip:
+a reader (live database -> tree) and an emitter (tree -> idiomatic .py).
 
-from .database import GenroDb, TablesRegistry
-from .table import Table
-from .trigger_stack import in_triggerstack
+The grammar is under design; see ``sql_elements.py`` for the target
+vocabulary.
+"""
 
-__all__ = ["GenroDb", "TablesRegistry", "Table", "in_triggerstack"]
+from .sql_builder import SqlBuilder
+from .sql_renderer import SqlRenderer
+
+__version__ = "0.1.0"
+
+__all__ = ["SqlBuilder", "SqlRenderer"]
