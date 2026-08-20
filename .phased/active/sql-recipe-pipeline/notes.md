@@ -135,3 +135,36 @@
   index names now travel verbatim, and D4 composite targets expand a
   three-part `to`. The Phase 7 contract tests were authored before these
   bends; if one fails on them it is a plan-defect candidate, not a code bug.
+
+## Phase 7
+
+- **Emitter is literal, and takes every ordering decision from the model**:
+  tree order for elements, element-signature order for keyword arguments
+  (`inspect.signature(SqlBuilder.<tag>._func)`). Nothing iterates a set, so
+  byte determinism is structural rather than a sorted() afterthought — and a
+  reordered grammar parameter moves the emitted recipe with it instead of
+  drifting from it.
+- **Variables only where something reads them back**: db, schema, table, and
+  a column that carries a relation. Chaining `column(...).relation(...)` was
+  rejected: it forces line-wrapping inside a call chain, and the variable
+  form is what a person writes by hand (Phase 4's golden recipe does exactly
+  this with `author_id`).
+- **SQL names are emitted as literals, Python identifiers are sanitized**
+  separately, so `order-line` and `class` never meet each other's namespace.
+- **`tests/conftest.py`: the pg facade now follows the recipe.** Phase 5
+  hardcoded `RECIPE_DB_NAME`/`APPLICATION_SCHEMAS` in the facade, which made
+  the fixture usable by exactly one recipe; Phase 7's contract migrates a
+  different one (`recipes`/`wfp7`) through the same `pg_database`. The facade
+  gained `adopt()` and an autouse fixture wraps `SqlMigrator.extractOrm` to
+  call it with the structure being diffed — so label and introspection
+  schemas come from the ORM side by construction, for any recipe. Declared
+  schemas are still returned first, so Phase 5's first preparation sees
+  exactly what it saw before.
+- **`pg_database.get_json_struct()`** is the facade-level introspection the
+  Phase 7 contract calls; upstream spells it
+  `db.adapter.reader.get_json_struct(db.get_dbname(), schemas=...)`
+  (migrator.py `extractSql`), and the fixture just binds those three.
+- **The blocker is recorded as a plan-defect claim on the phase**, not
+  worked around. Worth keeping for whoever judges it: the live-PostgreSQL
+  closure (apply -> introspect -> read -> emit -> exec -> render -> diff
+  empty) passes, so the reverse pipeline itself is closed end to end.

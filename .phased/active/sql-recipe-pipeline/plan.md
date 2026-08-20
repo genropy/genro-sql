@@ -318,7 +318,28 @@ introspection.
   - Details: implement reader.py; export `SqlModelReader`; copy Phase 6 contract tests and make them pass.
   - Done: contract tests `tests/test_wf_phase6_reader.py` pass — round-trip `JSON A -> to_builder() -> SqlMigrationRenderer.render() -> JSON B` with `json_equal(A, B)` (order-insensitive) on fixtures covering: minimal table, all dtypes, single+composite pkey, single+composite UNIQUE, CHECK, single+multi-column FK with actions and deferrable, index with DESC/where/method/with_options, unicode comments, two schemas with same-named tables; `pytest -q` exits 0.
 
-- [ ] **Phase 7**: SqlPythonEmitter — source tree to Python recipe, full round-trip
+- [!] **Phase 7**: SqlPythonEmitter — source tree to Python recipe, full round-trip
+  > Issue: plan-defect claim — `tests/test_wf_phase7_emitter.py::test_emitted_module_shape` asserts `'name="idx_' not in source_code`, and that
+  > assertion cannot hold for HUMAN_FIXTURE together with `test_emit_exec_render_closes_the_loop`. Three ratified facts close the box:
+  > (1) Phase 4's golden contract writes `recipe.index(name="ix_title", ...)` against a human twin carrying `{"name": "ix_title"}`, so an index's recipe
+  > `name` IS the physical `index_name` the renderer echoes; (2) genro-builders resolves a child's label from the PARENT's `collection_key`, and `table`
+  > declares `collection_key="name"` (D1's name addressing rests on it), so an index with no `name` raises `'index': collection key needs attribute 'name'`
+  > — an anonymous index is unbuildable, not merely undesirable; (3) Phase 6's ratified round-trip requires an index the source database never named to come
+  > back with its `index_name` intact, and `new_index_item` sets `index_name = index_name or hashed_entity_name`. So a recipe reproducing such an
+  > index must literally carry `name="idx_<hash>"`. HUMAN_FIXTURE's two indexes are both unnamed, hence both hashed. Every way around the assertion only
+  > hides the same hash from a substring check (passing it positionally, or via an `index_name=` alias — which still contains `name="idx_`), which is what D7
+  > actually forbids. Exact edit the plan needs, in `.phased/active/sql-recipe-pipeline/tests/phase-7/test_wf_phase7_emitter.py`:
+  > before-text `    for prefix in ("fk_", "cst_", "idx_"):` → after-text `    for prefix in ("fk_", "cst_"):` — relations and hash-named UNIQUE
+  > constraints genuinely come back anonymous, indexes cannot. If instead the foreman wants no hash in an emitted recipe at all, that is a grammar decision
+  > for a new phase (split `index.name` as the recipe key from a new physical `index_name`), and it reopens Phase 4's golden — not something this phase may
+  > decide alone.
+  > Attempted: 1) emitter drops any `^(fk|cst|idx)_[0-9a-f]{8}$` name → `ValueError: 'index': collection key needs attribute 'name', which is missing`
+  > at `create()`, i.e. the emitted module does not even build.  2) traced the three alternative channels for the physical name (readable recipe name +
+  > re-derived hash; `index_name` as a separate physical parameter; positional `name`) → each either breaks Phase 4's golden `json_equal`, breaks Phase 6's
+  > round-trip `json_equal`, or still emits the hash under a name the assertion catches.  3) kept the hash (round-trip law wins) → the other 4 contract
+  > tests are green, including the live-PostgreSQL closure; only this assertion fails.
+  > Files: src/genro_sql/modern/emitter.py, src/genro_sql/modern/__init__.py,
+  > src/genro_sql/__init__.py, tests/test_wf_phase7_emitter.py, tests/conftest.py
   - Pattern reference: `../genro-sqlmigration/src/genro_sqlmigration/xml_producer.py::struct_to_xml` (what to de-normalize); codex/04_JSON_TO_PYTHON_TRANSPILER.md §7 (emission rules — the dossier is IN this repo)
   - Files: src/genro_sql/modern/emitter.py, src/genro_sql/__init__.py, tests/test_grammar.py
   - Decisions:

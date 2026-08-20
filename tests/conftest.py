@@ -12,11 +12,14 @@ facade is what carries the recipe name:
   fixture uses the bare recipe name as a relative path and pins the
   working directory to ``tmp_path`` — label and file stay identical
   while every artifact lands in the temp directory.
-- PostgreSQL: a facade subclass reports the recipe name as the label
-  while connections stay on the dedicated D10 test database
+- PostgreSQL: a facade subclass reports the recipe's own label and
+  schemas while connections stay on the dedicated D10 test database
   (``test_genro_sql_*``), created empty here and dropped in teardown.
   Pre-creating it also keeps the migrator away from CREATE DATABASE,
-  which targets the label name.
+  which targets the label name. The facade learns the label from the
+  structure it is asked to migrate — one recipe per test, each with its
+  own db name and schemas — instead of a constant every test would have
+  to agree on.
 
 ``sqlite_reader`` reads an integer pkey back as ``I`` even when it was
 created from ``serial`` (documented v1 limitation). The resulting dtype
@@ -35,6 +38,7 @@ import os
 import psycopg
 import pytest
 
+from genro_sqlmigration import SqlMigrator
 from genro_sqlmigration.adapters import PgDatabase, SqliteDatabase
 
 APPLICATION_SCHEMAS = ["library_public"]
@@ -55,10 +59,34 @@ def sqlite_database(tmp_path, monkeypatch):
 
 
 class RecipeNamedPgDatabase(PgDatabase):
-    """Label the diff with the recipe name; connect to the test database."""
+    """Label the diff with the recipe's name; connect to the test database.
+
+    ``adopt`` is called by :func:`pg_facade_follows_the_recipe` with the
+    ORM structure the migrator is about to diff, so the database side of
+    the diff carries the same ``entity_name`` and the introspection
+    covers the schemas the recipe declares.
+    """
+
+    recipe_dbname = None
+    recipe_schemas = ()
+
+    def adopt(self, dbname, schemas):
+        self.recipe_dbname = dbname
+        self.recipe_schemas = schemas
 
     def get_dbname(self):
-        return RECIPE_DB_NAME
+        return self.recipe_dbname or super().get_dbname()
+
+    def getApplicationSchemas(self):
+        declared = super().getApplicationSchemas()
+        return declared + [schema for schema in self.recipe_schemas
+                           if schema not in declared]
+
+    def get_json_struct(self):
+        """The live structure of the recipe's own schemas."""
+        return self.adapter.reader.get_json_struct(
+            self.get_dbname(), schemas=self.getApplicationSchemas(),
+        )
 
 
 @pytest.fixture(scope="session")
@@ -84,6 +112,21 @@ def _drop_pg_database(pg_params, dbname):
             (dbname,),
         )
         conn.execute(f'DROP DATABASE IF EXISTS "{dbname}"')
+
+
+@pytest.fixture(autouse=True)
+def pg_facade_follows_the_recipe(monkeypatch):
+    """Teach the pg facade the label and schemas of the migrated recipe."""
+    extract_orm = SqlMigrator.extractOrm
+
+    def extractOrm(self):
+        extract_orm(self)
+        root = (self.ormStructure or {}).get("root") or {}
+        if isinstance(self.db, RecipeNamedPgDatabase) and root:
+            self.db.adopt(root.get("entity_name"),
+                          list(root.get("schemas") or {}))
+
+    monkeypatch.setattr(SqlMigrator, "extractOrm", extractOrm)
 
 
 @pytest.fixture

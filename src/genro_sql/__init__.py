@@ -13,18 +13,18 @@ A dialect family of genro-builders, one sub-package per grammar dialect
 - :mod:`genro_sql.base` — shared base classes (minimal for now).
 
 The same source tree is the pivot for the migration tooling
-(genro-sqlmigration) and, later, for the round-trip: a reader (live
-database -> tree) and an emitter (tree -> idiomatic .py).
+(genro-sqlmigration) and for the round-trip: :class:`SqlModelReader`
+(normalized JSON -> tree) and :class:`SqlPythonEmitter` (tree -> .py).
 """
 
 from .legacy import LegacySqlBuilder
-from .modern import SqlBuilder, SqlRenderer
+from .modern import SqlBuilder, SqlPythonEmitter, SqlRenderer
 
 __version__ = "0.1.0"
 
 __all__ = [
     "LegacySqlBuilder", "SqlBuilder", "SqlMigrationRenderer",
-    "SqlModelReader", "SqlRenderer",
+    "SqlModelReader", "SqlPythonEmitter", "SqlRenderer",
 ]
 
 

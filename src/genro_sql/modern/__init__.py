@@ -12,7 +12,8 @@ constraints, indexes and database extensions.
 migration JSON and :class:`SqlModelReader` reads it back. Both need
 genro-sqlmigration, an optional dependency, so they are resolved lazily:
 importing one of the names without the ``migration`` extra installed fails
-loudly instead of failing this whole module.
+loudly instead of failing this whole module. :class:`SqlPythonEmitter`
+closes the reverse path with no such need — it reads the tree only.
 """
 
 from __future__ import annotations
@@ -20,10 +21,12 @@ from __future__ import annotations
 from importlib import import_module
 
 from .builder import SqlBuilder
+from .emitter import SqlPythonEmitter
 from .renderer import SqlRenderer
 
 __all__ = [
-    "SqlBuilder", "SqlMigrationRenderer", "SqlModelReader", "SqlRenderer",
+    "SqlBuilder", "SqlMigrationRenderer", "SqlModelReader",
+    "SqlPythonEmitter", "SqlRenderer",
 ]
 
 _MIGRATION_EXTRA = (
