@@ -1,0 +1,3 @@
+⚠ Phase 5 has issues: the contract tests cannot pass as written against genro-sqlmigration 0.1.0.
+
+Two upstream blockers, both recorded in the plan's `> Issue:` note with the diff events that prove them: `SqlMigrator` diffs `root.entity_name` against the *physical* database name (SQLite reports the file path) and crashes on a mismatch with the recipe's `library`, while `sqlite_reader` returns `I` for an integer PK so the recipes' `dtype="serial"` is a permanent false diff. Fixtures, contract tests and the `postgresql` marker are committed and left failing for the repair session; the resolution — a `dbname` argument on `render()` or dialect gating upstream — is a plan-level decision.

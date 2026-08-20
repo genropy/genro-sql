@@ -230,13 +230,46 @@ introspection.
   > Files: src/genro_sql/modern/migration.py, src/genro_sql/modern/__init__.py,
   > src/genro_sql/__init__.py, pyproject.toml, tests/test_wf_phase4_renderer.py
 
-- [!] **Phase 5**: Real-database integration — create and align via SqlMigrator
-  > Repair started: 2026-08-20T10:32:01Z — chat run-workflow (unattended)
-  > Issue: the phase-5 contract tests cannot pass as written against genro-sqlmigration 0.1.0 — two blockers, both upstream of genro-sql.
-  > (1) Root-name contract: `SqlMigrator` diffs `root.entity_name`, which the readers fill with the PHYSICAL database name (SQLite: the absolute file path), while `SqlMigrationRenderer.render()` emits the recipe's `db(name=...)` — `library`. A mismatch does not merely produce a spurious event, it crashes `diff_engine.dictDifferChanges()` (`ValueError: dictionary update sequence element #0 has length 129; 2 is required`, diff event `change root.entity_name (<tmp>/library.db, 'library')`). genro-sqlmigration's own suite never hits it because `OrmJsonProducer(model, db.get_dbname())` is handed the physical name. For SQLite the two can never be equal (the reader reports a path); for PostgreSQL equality would force the test database to be named `library`, which collides with a pre-existing `library` database on this machine (`psycopg.errors.DuplicateDatabase` on the migrator's own CREATE DATABASE) and violates D10's `test_genro_sql_*` naming and drop-in-teardown safety rule.
-  > (2) SQLite serial: `LibraryV1`/`LibraryV2` declare `id` as `dtype="serial"`; `sqlite_reader` documents that it maps declared types only and returns `I` for an integer PK ('migrations targeting SQLite must declare integer PKs as I'), so `change ...columns.id.attributes.dtype ('I', 'serial')` is a permanent false diff and `test_sqlite_create_apply_idempotent` can never be idempotent. `applyCapabilities()` gates extensions, relations and constraints, not dtypes, so there is no in-dialect seam.
-  > Attempted: contract tests copied verbatim into `tests/`; `tests/conftest.py` written with the `sqlite_database` and `pg_database` fixtures per D10 (env `GNR_TEST_PG_*`, `test_genro_sql_<test-name>` created and dropped around each test, `library_public` as the single application schema) and the `postgresql` marker registered in pyproject. Rendering itself is correct and validated: V2 projects 4 columns, the `ck_year` CHECK constraint and the `indexed=True` index. Searched genro-sqlmigration for a seam that would make the phase implementable in-repo — `SqlMigrator` has no option to skip the db-level diff (`extensions`, `ignore_constraint_name`, `excludeReadOnly`, `removeDisabled`, `force`, `backup` only), and neither `render()` nor the fixtures can reconcile the two names. Not attempted, deliberately: editing the contract tests (forbidden), patching genro-sqlmigration (outside this phase's Files and the one-way dependency boundary), and migrating into the pre-existing local `library` database (data-loss risk).
-  > Resolution needed: either `SqlMigrationRenderer.render()` gains a `dbname` argument (and the contract test a matching call) so the root name can carry the physical target, or genro-sqlmigration stops diffing `root.entity_name` / gates `serial` by dialect capability. That is a plan-level decision, not a phase-local fix.
+- [x] **Phase 5**: Real-database integration — create and align via SqlMigrator
+  > Done: contract tests 4/4 green (byte-identical copy verified), the SQLite
+  > case and the 3 PostgreSQL cases both running against the local server;
+  > `pytest -q` -> 59 passed, exit 0; `ruff check` clean.
+  > Repaired: both "upstream blockers" dissolve inside the fixtures the phase
+  > owns. (1) Root name: the migrator labels the DB side of the diff with
+  > `db.get_dbname()` (`extractSql`, migrator.py:309) and upstream keeps the
+  > two sides equal by handing the producer that same name
+  > (`OrmJsonProducer(model, db.get_dbname())`); since `render()` emits the
+  > recipe's logical name by contract, the reconciliation point is the
+  > Database facade the conftest constructs — SQLite: relative dbname
+  > `library` + `monkeypatch.chdir(tmp_path)` (get_dbname doubles as the file
+  > path, so label == path with all artifacts in the temp dir); PG: a
+  > PgDatabase subclass whose `get_dbname()` returns `library` as label while
+  > connections stay on the D10 `test_genro_sql_*` database, pre-created
+  > empty so `added_db` (which builds CREATE DATABASE from the ORM root name)
+  > never fires. (2) SQLite serial: the `I -> serial` dtype event is absorbed
+  > by capability gating — SQLite declares no `alter_column_type`, so the
+  > command builder records a warning and emits no SQL; `getChanges()` stays
+  > empty and idempotence holds with the stock reader. The failed session
+  > proved its blockers with diff EVENTS, but the contract judges the
+  > assembled SQL. Also corrected: the "pre-existing `library` database
+  > (data-loss risk)" was created by the failed run itself — its own
+  > `CREATE DATABASE "library"` (manager=True) from blocker-hunting; it is
+  > empty (zero user tables, only `public`), verified this session.
+  > Files: tests/test_wf_phase5_integration.py, tests/conftest.py (rewritten
+  > by the repair), pyproject.toml (postgresql marker).
+  > Review: (1) the PG leg never exercises `db_creation` and cannot under
+  > this contract — `added_db` targets the ORM root name, and creating a
+  > database named `library` is exactly the D10 violation; the SQLite leg
+  > covers creation end-to-end (the migration creates the file). Nothing
+  > asserts the path stays dormant on PG. (2) a stray empty database
+  > `library` from the failed run is still on the local server — human
+  > decision to `DROP DATABASE library`. (3) proper upstream fixes to
+  > propose: sqlite_reader reverse-maps a single integer pkey to `serial`
+  > (documented v1 limitation), or `applyCapabilities()` gates dtypes; a
+  > `render(dbname=...)` override would let producers carry the physical
+  > name the way `OrmJsonProducer` does. (4) facade side effect: connection
+  > errors in the PG tests would report `library` instead of the physical
+  > test database name.
   - Pattern reference: `../genro-sqlmigration/tests/test_migration_sqlite.py` and `../genro-sqlmigration/tests/test_migration_pg.py` (migrator lifecycle: ormStructure -> prepareMigrationCommands -> getChanges/applyChanges), `../genro-sqlmigration/tests/conftest.py` (PG connection fixtures)
   - Files: tests/test_wf_phase5_integration.py, tests/conftest.py
   - Decisions:

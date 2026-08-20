@@ -1,8 +1,0 @@
-Nessuna sessione col titolo foreman `wf:sql-recipe-pipeline` tra i peer — la notifica di successo è best-effort e non obbligatoria, la registrazione durevole è nel piano committato.
-
-✓ Phase 2 repaired: node addressing and cardinality reporting were implementable in-dialect — not contract defects
-
-- **Root cause**: la sessione fallita aveva letto bene il framework (`Bag.__getitem__` restituisce valori; genro-builders applica i massimi di cardinalità all'inserimento) ma ne ha tratto la conclusione sbagliata — che solo un edit del contratto potesse far passare i 4 test rossi. Entrambe le premesse erano soddisfacibili dentro genro-sql: `SqlSourceBag.__getitem__ → get_node` (i sub-bag ereditano la classe via `type(node.parent_bag)`), e `relation` illimitato in `sub_tags` con `validate_source()` esteso a riportare le colonne con più di una relation.
-- **Verde dimostrato**: `pytest -q` → 35 passed (10/10 contract test, copia byte-identica al contratto read-only), `ruff check src tests` pulito.
-- **Verifier**: 3 finding MECHANICAL corretti (marker, `set_backref` no-op, `collection_key` inerte su constraint); 7 JUDGMENT registrati in `> Review:` per finalize — i più rilevanti: la deviazione da `relation[0:1]` delle Decisions, le etichette `relation_0` (Phase 4/7 non devono indirizzarle per label), e l'assenza di `parent_tags` (contenimento solo verso il basso).
-- Commit `56160a9`; il piano ora mostra Phase 3 eleggibile.
