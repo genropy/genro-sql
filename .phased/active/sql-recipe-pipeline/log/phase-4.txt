@@ -1,0 +1,5 @@
+Foreman unreachable — silent skip per the skill.
+
+✓ Phase 4 completed: SqlMigrationRenderer — source tree to normalized JSON
+
+Contract tests 9/9 green on the first run (byte-identical copy verified), `pytest -q` → 55 passed, `ruff check src tests` clean; committed as `cde0af3`. The renderer builds every entity through the `genro_sqlmigration.structures` factories and passes `StructureValidator` (jsonschema installed, so the formal layer ran too). Three choices the plan left open — `deferred` → `deferrable`+`initially_deferred`, exact-pkey auto-index skip, explicit index beating the sugar — are recorded in `notes.md`.
