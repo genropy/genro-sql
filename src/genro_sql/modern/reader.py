@@ -151,10 +151,10 @@ class SqlModelReader:  # wf:phase-6:new
                 extension.get("attributes") or {}, frozenset(),
             )
             db.extension(name=extension_name)
-        for key, table in tables.items():
-            self._fill_relations(key, table)
-            self._fill_constraints(key, table)
-            self._fill_indexes(key, table)
+        for table in tables.values():
+            self._fill_relations(table)
+            self._fill_constraints(table)
+            self._fill_indexes(table)
 
     def _add_table(self, schema_node, schema_name, table_name,
                    table) -> dict:  # wf:phase-6:new
@@ -258,7 +258,7 @@ class SqlModelReader:  # wf:phase-6:new
 
     # -- second pass -----------------------------------------------------
 
-    def _fill_relations(self, key, table) -> None:  # wf:phase-6:new
+    def _fill_relations(self, table) -> None:  # wf:phase-6:new
         indexed = {
             tuple(_names(index["attributes"].get("columns")))
             for index in table["json"].get("indexes", {}).values()
@@ -293,7 +293,7 @@ class SqlModelReader:  # wf:phase-6:new
             return f"{schema_name}.{table_name}"
         return f"{schema_name}.{table_name}.{'_'.join(columns)}"
 
-    def _fill_constraints(self, key, table) -> None:  # wf:phase-6:new
+    def _fill_constraints(self, table) -> None:  # wf:phase-6:new
         for name, constraint in table["json"].get("constraints", {}).items():
             attributes = constraint["attributes"]
             path = f"{table['path']}.constraints.{name}"
@@ -310,7 +310,7 @@ class SqlModelReader:  # wf:phase-6:new
                     columns=",".join(_names(attributes.get("columns"))),
                 )
 
-    def _fill_indexes(self, key, table) -> None:  # wf:phase-6:new
+    def _fill_indexes(self, table) -> None:  # wf:phase-6:new
         for name, index in table["json"].get("indexes", {}).items():
             attributes = index["attributes"]
             self._check_keys(

@@ -1,0 +1,3 @@
+Phase 8 closed [x] and committed (256938d).
+
+`docs/grammar.md` is generated from the live grammar: hierarchy tree plus one section per element with containment, cardinality, projection flags, extra-key policy and a parameter table (type, default, plane, prose). Signatures come from each tag's declarative marker resolved along `SqlBuilder.__mro__` — the schema nodes carry no `_func`, so the plan's stated route needed that adjustment, recorded in the phase note. Suite 80 passed, `ruff check src tests` clean.

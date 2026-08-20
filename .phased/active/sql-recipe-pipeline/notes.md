@@ -185,3 +185,20 @@
   /write-workflow has no cross-check between contract assertions and the
   decisions later phases are allowed to bend.
 - Phases 8-9 did not run (run stopped by the consult). Resume: fresh /run-workflow.
+
+## Phase 9
+
+- The dead `key` parameters (validators, reader) were cut rather than
+  flagged: they are private methods with no caller outside their own loop,
+  so the change is signature + call site and the suite proves it.
+- The plan-directory contract copies were brought under the existing
+  `per-file-ignores` policy instead of being excluded from ruff: they ARE
+  the files that policy already describes, and a human typing
+  `ruff check .` should not meet a failure the run considers acceptable.
+- `grammar_doc.py`'s private import from genro-builders was NOT changed.
+  The public `to_grammar(path)` writes JSON to a file and returns `None`;
+  routing the doc generator through a temp file to avoid one private import
+  trades a visible coupling for a hidden one. Flagged for a genro-builders
+  issue instead.
+- The two deferred `Verify:` checks of Phases 7 and 8 became `verify.md`
+  entries due now: both are readability judgments no test can make.

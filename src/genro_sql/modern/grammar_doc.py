@@ -29,7 +29,7 @@ DOC_PATH = Path(__file__).resolve().parents[3] / "docs" / "grammar.md"
 _ROOT_TAG = "db"
 
 
-def _elements() -> dict[str, dict[str, Any]]:
+def _elements() -> dict[str, dict[str, Any]]:  # wf:phase-8:new
     """Grammar elements, data-elements excluded."""
     document = _class_schema_to_grammar_document(SqlBuilder)
     return {
@@ -39,7 +39,7 @@ def _elements() -> dict[str, dict[str, Any]]:
     }
 
 
-def _marker(tag: str) -> Any:
+def _marker(tag: str) -> Any:  # wf:phase-8:new
     """The declarative marker that declared element ``tag``."""
     for klass in SqlBuilder.__mro__:
         marker = klass.__dict__.get(tag)
@@ -48,7 +48,7 @@ def _marker(tag: str) -> Any:
     raise LookupError(f"no element declaration found for {tag!r}")
 
 
-def _arg_docs(doc: str) -> dict[str, str]:
+def _arg_docs(doc: str) -> dict[str, str]:  # wf:phase-8:new
     """Parameter descriptions read from the ``Args:`` section of ``doc``."""
     lines = (doc or "").splitlines()
     try:
@@ -72,19 +72,19 @@ def _arg_docs(doc: str) -> dict[str, str]:
     return out
 
 
-def _plane(name: str, description: str) -> str:
+def _plane(description: str) -> str:  # wf:phase-8:new
     """``semantic`` when the docstring says so, else ``physical``."""
     return "semantic" if description.startswith("semantic;") else "physical"
 
 
-def _prose(description: str) -> str:
+def _prose(description: str) -> str:  # wf:phase-8:new
     """Docstring text as Markdown: plane marker dropped, RST literals fixed."""
     if description.startswith("semantic;") or description.startswith("physical;"):
         description = description.split(";", 1)[1].strip()
     return description.replace("``", "`")
 
 
-def _parameters(tag: str) -> tuple[list[tuple[str, str, str, str, str]], bool]:
+def _parameters(tag: str) -> tuple[list[tuple[str, str, str, str, str]], bool]:  # wf:phase-8:new
     """Signature rows ``(name, type, default, plane, description)``."""
     marker = _marker(tag)
     signature = inspect.signature(marker._func)
@@ -108,12 +108,12 @@ def _parameters(tag: str) -> tuple[list[tuple[str, str, str, str, str]], bool]:
         )
         description = descriptions.get(name, "")
         rows.append((name, type_name, default,
-                     _plane(name, description), _prose(description)))
+                     _plane(description), _prose(description)))
     return rows, open_signature
 
 
 def _tree(tag: str, elements: dict[str, dict[str, Any]],
-          prefix: str = "", seen: tuple[str, ...] = ()) -> list[str]:
+          prefix: str = "", seen: tuple[str, ...] = ()) -> list[str]:  # wf:phase-8:new
     """Hierarchy lines for ``tag`` and its descendants."""
     children = [
         child.strip()
@@ -133,7 +133,7 @@ def _tree(tag: str, elements: dict[str, dict[str, Any]],
     return lines
 
 
-def _summary(doc: str) -> str:
+def _summary(doc: str) -> str:  # wf:phase-8:new
     """First paragraph of a docstring."""
     paragraph: list[str] = []
     for line in (doc or "").splitlines():
@@ -143,7 +143,7 @@ def _summary(doc: str) -> str:
     return " ".join(paragraph)
 
 
-def _body(doc: str) -> list[str]:
+def _body(doc: str) -> list[str]:  # wf:phase-8:new
     """Docstring paragraphs after the summary, up to ``Args:``."""
     lines = (doc or "").splitlines()
     out: list[str] = []
@@ -161,7 +161,7 @@ def _body(doc: str) -> list[str]:
     return out
 
 
-def generate_grammar_md() -> str:
+def generate_grammar_md() -> str:  # wf:phase-8:new
     """Render the grammar reference as Markdown."""
     elements = _elements()
     out: list[str] = [

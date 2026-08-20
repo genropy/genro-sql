@@ -53,11 +53,11 @@ class SqlModelValidator:  # wf:phase-3:new
         self._resolved: dict[str, tuple] = {}
         self._collect(builder)
         self._check_attributes(builder)
-        for key, table in self._tables.items():
-            self._check_pkey(key, table)
-            self._check_composites(key, table)
-            self._check_constraints(key, table)
-            self._check_indexes(key, table)
+        for table in self._tables.values():
+            self._check_pkey(table)
+            self._check_composites(table)
+            self._check_constraints(table)
+            self._check_indexes(table)
         for path, node in self._relations:
             self._check_relation(path, node)
         self._check_back_references()
@@ -142,7 +142,7 @@ class SqlModelValidator:  # wf:phase-3:new
                     f"{', '.join(sorted(declared))}",
                 )
 
-    def _check_pkey(self, key, table: dict) -> None:  # wf:phase-3:new
+    def _check_pkey(self, table: dict) -> None:  # wf:phase-3:new
         for name in self._pkey_names(table):
             if name not in table["columns"]:
                 self._error(
@@ -150,7 +150,7 @@ class SqlModelValidator:  # wf:phase-3:new
                     f"pkey column '{name}' is not a physical column of the table",
                 )
 
-    def _check_composites(self, key, table: dict) -> None:  # wf:phase-3:new
+    def _check_composites(self, table: dict) -> None:  # wf:phase-3:new
         for name, node in table["composites"].items():
             members = self._names(node.get_attr("columns"))
             if not members:
@@ -166,7 +166,7 @@ class SqlModelValidator:  # wf:phase-3:new
                         "column of the table",
                     )
 
-    def _check_constraints(self, key, table: dict) -> None:  # wf:phase-3:new
+    def _check_constraints(self, table: dict) -> None:  # wf:phase-3:new
         for path, node in table["constraints"]:
             kind = node.get_attr("constraint_type")
             name = node.get_attr("name")
@@ -186,7 +186,7 @@ class SqlModelValidator:  # wf:phase-3:new
                         "column of the table",
                     )
 
-    def _check_indexes(self, key, table: dict) -> None:  # wf:phase-3:new
+    def _check_indexes(self, table: dict) -> None:  # wf:phase-3:new
         for path, node in table["indexes"]:
             for column in self._names(node.get_attr("columns")):
                 if column not in table["columns"]:

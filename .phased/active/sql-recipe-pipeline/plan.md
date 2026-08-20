@@ -386,7 +386,27 @@ introspection.
   - Done: contract tests `tests/test_wf_phase8_doc.py` pass (file exists, regeneration is byte-identical, every Phase 2 element name appears as a section); `pytest -q` exits 0.
   - Verify: deferred: needs Phase 9 — read docs/grammar.md top to bottom: does it read as a reference a developer would consult?
 
-- [ ] **Phase 9**: Coherence review and auto-fix (final, mandatory)
+- [x] **Phase 9**: Coherence review and auto-fix (final, mandatory)
+  > Done: `review.md` written with its three sections (Auto-fixed, Flagged
+  > for human, Final state). Two convergence cycles, both green; a third was
+  > not needed. `ruff check .` -> All checks passed (repo-wide, not only the
+  > reviewed set), `pytest -q` -> 80 passed exit 0, `pytest -q -m postgresql`
+  > -> 4 passed against the local PG 16.
+  > Auto-fixed: dead `key` parameters on 4 validator and 3 reader methods,
+  > `_plane(name, ...)` in grammar_doc, the missing `# wf:phase-8:new` markers
+  > on grammar_doc's ten functions, and the ruff per-file-ignores glob so the
+  > plan's own contract-test copies stop failing a repo-wide `ruff check .`.
+  > Flagged (6, in review.md): the private `_class_schema_to_grammar_document`
+  > import from genro-builders (no public in-memory route exists), `_names()`
+  > triplicated with a diverging strip, `_INDEX_OPTIONS` duplicated,
+  > D7's `# TODO` clause unreachable by construction, `print()` in the two
+  > `__main__` demos, and the empty DDL renderer behind `renderer_sql`.
+  > Files: .phased/active/sql-recipe-pipeline/review.md,
+  > .phased/active/sql-recipe-pipeline/verify.md, pyproject.toml,
+  > src/genro_sql/modern/validators.py, src/genro_sql/modern/reader.py,
+  > src/genro_sql/modern/grammar_doc.py
+  > Verify: now — the two checks Phases 7 and 8 deferred to this phase are in
+  > verify.md: read one emitted recipe, and read docs/grammar.md.
   - Pattern reference: same as Phases 1..8 (cross-check against them)
   - Files: only the files written by Phases 1..8 (collect them from their `Files:` fields). Never touch a pre-existing file they did not modify.
   - Decisions:

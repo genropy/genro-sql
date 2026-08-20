@@ -88,6 +88,7 @@ ignore = [
 # read-only: a binding kept for documentation value is not a defect here.
 [tool.ruff.lint.per-file-ignores]
 "tests/test_wf_phase*.py" = ["F841"]
+".phased/**/test_wf_phase*.py" = ["F841"]
 
 [tool.mypy]
 python_version = "3.10"
