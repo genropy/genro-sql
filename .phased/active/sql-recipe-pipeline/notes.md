@@ -120,3 +120,18 @@
   read, so `_plan_composites` walks the whole structure first and
   `_add_table` mounts what the plan asks for. Same pass merges the FK and
   UNIQUE needs of one column set into a single composite.
+
+## Run inspection
+
+- Run of 2026-08-20 (afternoon, relaunch after the host-restart reset): Phase 6
+  completed uneventfully — contract tests 11/11, full suite 71 passed, ruff
+  clean, commit 471c5a5.
+- The run was then deliberately terminated by the user (credit budget) right
+  after `EVENT: phase-done 6`, before Phase 7's session started spending.
+  `log/phase-7.txt` was created empty by the launcher header and carries no
+  session output. Phases 7-9 remain `[ ]`; resume is a fresh `/run-workflow`.
+- Watch point for Phase 7: Phase 6 bent two plan decisions (recorded in its
+  Done note and above) — `relation` gained `indexed: bool = True`, hashed
+  index names now travel verbatim, and D4 composite targets expand a
+  three-part `to`. The Phase 7 contract tests were authored before these
+  bends; if one fails on them it is a plan-defect candidate, not a code bug.
