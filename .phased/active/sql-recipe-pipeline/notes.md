@@ -168,3 +168,20 @@
   worked around. Worth keeping for whoever judges it: the live-PostgreSQL
   closure (apply -> introspect -> read -> emit -> exec -> render -> diff
   empty) passes, so the reverse pipeline itself is closed end to end.
+
+## Run inspection (second run, phases 7-9)
+
+- Phase 7 closed [!] with a plan-defect claim, exactly the watch point recorded
+  after Phase 6: the contract's `'name="idx_'` prohibition predates the ratified
+  hashed-index round-trip law. The claim was correct — the first true one of the
+  workflow (the Phase 2 and 5 claims were both wrong).
+- Consult answered `stop` by the user (credit budget: no fable repair for a
+  one-line contract edit). The foreman applied the edit to both contract copies,
+  re-ran the suite (76 passed, ruff clean, PG closure live) and closed the phase
+  [x] in cf6f56a. The emitter code committed by the failed session (34ac0cf)
+  needed no repair.
+- Ledger entry appended to ~/.phased/wf-lessons.md: contract tests authored at
+  plan time can codify assertions that later ratified decisions invalidate;
+  /write-workflow has no cross-check between contract assertions and the
+  decisions later phases are allowed to bend.
+- Phases 8-9 did not run (run stopped by the consult). Resume: fresh /run-workflow.
