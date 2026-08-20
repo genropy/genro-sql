@@ -205,7 +205,7 @@ introspection.
   > — the only introspection point for it today; Phase 8 reads the same
   > structure.
 
-- [ ] **Phase 4**: SqlMigrationRenderer — source tree to normalized JSON
+- [x] **Phase 4**: SqlMigrationRenderer — source tree to normalized JSON
   - Pattern reference: `../genro-sqlmigration/src/genro_sqlmigration/json_producer.py` (the projection twin: same factories, same normalization rules)
   - Files: src/genro_sql/modern/migration.py, src/genro_sql/__init__.py, pyproject.toml, tests/test_grammar.py
   - Decisions:
@@ -215,6 +215,20 @@ introspection.
     - pyproject.toml: add the `migration` optional dependency (D9).
   - Details: implement migration.py; extend `genro_sql/__init__.py` exports (`SqlMigrationRenderer` importable only when genro-sqlmigration is installed — import guarded in `__getattr__` or a submodule import, loud ImportError naming the extra); copy Phase 4 contract tests and make them pass.
   - Done: contract tests `tests/test_wf_phase4_renderer.py` pass (golden convergence recipe-vs-human-JSON via JsonStructureProducer, StructureValidator acceptance, semantic-plane exclusion, dtype/FK-action constant parity with genro-sqlmigration); `pytest -q` exits 0.
+  > Done: contract tests 9/9 green on the first run (byte-identical copy
+  > verified), `pytest -q` -> 55 passed, `ruff check src tests` clean.
+  > `SqlMigrationRenderer.render()` domain-validates, indexes the tree once,
+  > then builds every entity through the `genro_sqlmigration.structures`
+  > factories — the structural hashes and `clean_attributes` are never
+  > reimplemented — and hands the result to `StructureValidator` (jsonschema
+  > present, so the formal schema layer really ran) before returning its
+  > normalized copy. The semantic plane cannot leak: each entity is filled
+  > from an enumerated key set, never from the node's attribute dict.
+  > `SqlMigrationRenderer` is resolved lazily through a module `__getattr__`
+  > on `genro_sql` and `genro_sql.modern`, so the optional dependency stays
+  > optional and a missing extra fails loudly by name.
+  > Files: src/genro_sql/modern/migration.py, src/genro_sql/modern/__init__.py,
+  > src/genro_sql/__init__.py, pyproject.toml, tests/test_wf_phase4_renderer.py
 
 - [ ] **Phase 5**: Real-database integration — create and align via SqlMigrator
   - Pattern reference: `../genro-sqlmigration/tests/test_migration_sqlite.py` and `../genro-sqlmigration/tests/test_migration_pg.py` (migrator lifecycle: ormStructure -> prepareMigrationCommands -> getChanges/applyChanges), `../genro-sqlmigration/tests/conftest.py` (PG connection fixtures)

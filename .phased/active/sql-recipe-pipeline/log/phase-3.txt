@@ -1,0 +1,3 @@
+✓ Phase 3 completed: Domain validators on the complete tree
+
+Contract tests 11/11 green on first run, `pytest -q` → 46 passed, `ruff check src tests` clean; commit `0f486d6`. Two review notes recorded in the plan: a ruff `per-file-ignores` entry was needed because the read-only contract file trips F841, and the `x_` check reads `declared_names` off `_class_schema` (a genro-builders internal Phase 8 also depends on). No foreman session was reachable, so the notification was skipped.

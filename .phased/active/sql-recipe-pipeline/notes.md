@@ -61,3 +61,27 @@
   touching the read-only contract file. Rejected alternative: adding `# noqa`
   to the contract copy, which would make the in-tree copy diverge from the plan
   copy and defeat the byte-identical check.
+
+## Phase 4
+
+- **`deferred=True` maps to both contract keys.** The grammar has one flag,
+  the normalized JSON has `deferrable` and `initially_deferred`. An
+  INITIALLY DEFERRED constraint must be DEFERRABLE, so the renderer sets
+  both; the reverse mapping (Phase 6) has to collapse them back into one.
+- **The auto-index skip rule is exact equality with the pkey column list**,
+  not "any subset of the pkey". A prefix of a composite pkey is genuinely
+  worth its own index, and the plan's parity note only claims the PK
+  already indexes the PK.
+- **An explicit `index` wins over the `indexed=True` / FK sugar.** Both
+  land on the same structural hash (it is computed from the columns), so
+  the sugar is added with `setdefault` after the explicit ones: the
+  readable name and the options survive.
+- **`relation.to` resolution in the renderer mirrors the validator**: two
+  parts means the target pkey, three parts a single column. D4's "target
+  composite" case is unreachable from here — the validator rejects a `to`
+  whose third part is not a physical column — so it is left to the reader
+  (Phase 6), which is where composites get synthesized.
+- **`sql_type` does not suppress the dtype default.** D5 says it wins at
+  DDL time; at projection time the renderer stays byte-parity with
+  `JsonStructureProducer`, which defaults `dtype` regardless. Diverging
+  here would break the golden oracle, not fix anything.
