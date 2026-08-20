@@ -202,3 +202,9 @@
   issue instead.
 - The two deferred `Verify:` checks of Phases 7 and 8 became `verify.md`
   entries due now: both are readability judgments no test can make.
+
+## Run inspection (third run, phases 8-9)
+
+- uneventful run, 2/2 phases. Phase 8 in light mode (3m04s), Phase 9 xhigh
+  (7m40s): 5 auto-fixes, 6 human flags in review.md, suite 80 passed with the
+  4 postgresql-marked tests verified live.
