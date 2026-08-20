@@ -1,11 +1,13 @@
 # Legacy Inventory — Migration System & Adapter DDL Surface
 
-**Version**: 0.1.0 · **Last Updated**: 2026-07-06 · **Status**: 🔴 DA REVISIONARE
+**Version**: 0.2.0 · **Last Updated**: 2026-07-08 · **Status**: 🔴 DA REVISIONARE
 
 Part of the genro-sql design documentation set (see `00_INDEX.md`).
 Scope: the normalized JSON contract, the ORM→JSON projection (the
 contract between model grammar and migration), the DB extractor, diff
-engine, command builder and the adapter DDL surface. Source: Genropy
+engine, command builder and the adapter DDL surface. §7 (addendum
+2026-07-08) adds runtime coupling, framework integration and the test
+map. Source: Genropy
 worktree `develop` @ `83c138bb6`.
 
 ---
@@ -407,7 +409,110 @@ Planned entity schemas (README:138-247):
 
 ---
 
+## 7. Addendum (2026-07-08) — coupling, framework integration, test map
+
+Findings from a verification pass over the whole package; sections 1–6
+were re-checked against the source and confirmed accurate.
+
+### 7.1 Runtime coupling (external imports per file)
+
+| File | External imports | Nature |
+|---|---|---|
+| `__init__.py` | `gnr.sql.gnrsql_exceptions.GnrSqlException` | exception |
+| `structures.py` | `gnr.core.gnrbag.Bag` (only in `json_to_tree`, :409-437) | gnr.core, optional |
+| `orm_extractor.py` | `gnr.core.gnrdict.dictExtract`, `gnr.core.gnrstring.boolean` | gnr.core |
+| `db_extractor.py` | `gnr.dev.decorator.time_measure`, exceptions | decorator + exceptions |
+| `diff_engine.py` | `dictdiffer` (PyPI), `gnr.core.gnrbag.Bag`, `gnr.sql._typing` | dictdiffer + typing |
+| `command_builder.py` | `re`, `GnrSqlException`, `gnr.sql._typing` | exception + typing |
+| `executor.py` | `gnr.sql._typing` | typing |
+| `migrator.py` | `Bag`, exceptions, the 5 internal modules | gnr.core |
+
+`gnr/sql/_typing.SqlMigratorBaseMixin` is **type-checking only**: at
+runtime `TYPE_CHECKING` is `False` and the mixin base is `object`
+(`_typing.py:30`). No runtime coupling between the mixins and
+`SqlMigrator`.
+
+**Verdict on "diff engine and command builder are reused as-is"** (§1
+of the design doc): true for `diff_engine.py` (reads only
+`self.sqlStructure`/`self.ormStructure` dicts + `dictdiffer`; the Bag
+is only for the admin-UI `getDiffBag`). **Not entirely true for
+`command_builder.py`**: it never touches the model, but it is tightly
+coupled to the adapter via `self.db.adapter` — ~15 `struct_*_sql` /
+`columnSql*` / `createDbSql` / `adaptSqlName` calls plus
+`TYPE_CONVERSIONS` (command_builder.py:141, :188, :241, :264, :334,
+:443-449, :489-514, :557, :691, :739, :816, :843, :868, :895) — and to
+the host flags (`self.force`, `self.backup`,
+`self.ignore_constraint_name`, `self.removeDisabled`). It is reusable
+only if the new world reproduces that DDL surface (in the rewrite: the
+renderer/dialect, per the plan) and the flags. The exact SQL strings
+are produced by the adapter, not by the command builder. The only file
+truly coupled to the old model is `orm_extractor.py` (§2) — by design,
+and that is precisely the file the rewrite replaces with a projection
+of the new source tree.
+
+### 7.2 Framework integration — two coexisting engines
+
+`SqlMigrator` is invoked from exactly two places:
+
+1. **CLI `gnr migrate`** (`gnr/db/cli/gnrmigrate.py:218`) — flags
+   `--force`, `--backup`, `--check`, `--inspect`, `--extensions`,
+   `--upgrade`; aborts if the adapter lacks the `MIGRATIONS`
+   capability (:199).
+2. **`GnrSqlDb` schema API** (`gnr/sql/gnrsql/schema.py`):
+   `diffOrmToSql()` (:110-117) and `syncOrmToSql()` (:119-124).
+
+It **coexists** with the OLD schema-alignment engine:
+`SqlModelChecker` + `ModelExtractor` (`gnr/sql/gnrsqlutils.py:123` and
+`:14`), wired behind `db.checkDb()` → `model.check()`
+(`schema.py:99-108` → `gnrsqlmodel/model.py:440-455`) and still called
+from `web/_gnrbasewebpage.py:787,796`. The OLD engine compares the
+model directly against the legacy adapter introspection
+(`listElements`/`relations`/`getTableConstraints`, doc `06` §3) and
+emits DDL through the legacy pre-migration helpers (§5.3). Porting
+decision (plan, Fase 3): only `SqlMigrator` is ported; `checkDb`
+consumers move to the new engine.
+
+### 7.3 Execution semantics
+
+`applyChanges` runs each statement with `autoCommit=True`
+(`executor.py:232`, documented at :44-45): migrations are **not
+atomic** — a mid-run failure leaves the DB partially migrated.
+Idempotence is by design (diff recomputed each run) and pinned by
+`checkChanges` re-running the migrator (test, :92-97). Whether the new
+world wraps migrations in a transaction is a new design decision, not
+a porting one.
+
+### 7.4 Test map (the migration oracles)
+
+`tests/sql/test_gnrsqlmigration.py` (1658 lines, 79 test methods):
+
+| Base class | Tests | Collected as | Coverage |
+|---|---|---|---|
+| `BaseGnrSqlMigration` | 50 | `TestGnrSqlMigration_postgres`, `_postgres3` | create db/schema/table, columns, PK/composite PK, UNIQUE, FK (single/multi, non-PK + auto index, onDelete/deferred), all dtype conversions (12a–12q) |
+| `..._DefaultException` | 4 | `_postgres_exception` | incompatible conversion on non-empty column raises; empty column converts |
+| `..._ForceMode` | 4 | `_postgres_force` | `force=True`: unconvertible values → NULL (real data verified) |
+| `..._BackupMode` | 8 | `_postgres_backup` | backup column `__{dtype}` + data preserved |
+| `..._Extension` | 3 | `_postgres_extension`, `_postgres3_extension` | `CREATE EXTENSION IF NOT EXISTS`, no drop, no recreate |
+| `ToDo` | 4 | **not collected** (no `Test` prefix) | FK/UNIQUE add-drop, change pkey — unimplemented features |
+| `GeneralSqlMigrationCode` | 6 | **not collected** | MagicMock regression tests for the 5 fixed README bugs |
+
+122 cases actually execute against a live ephemeral Postgres
+(`testing.postgresql`, `tests/sql/common.py:6,50`); models are built
+inline via `cls.db.model.src`. `checkChanges(expected)` (:63-97)
+normalizes whitespace, compares the **exact generated SQL** against a
+pinned string, applies it for real, and re-runs the migrator asserting
+zero residual changes. Pinned oracles include the hashed constraint
+names (`cst_703bf76b`, `fk_*`, `idx_*` — structural 8-hex hashes:
+changing `hashed_name` invalidates every oracle) and all the dtype
+`USING` conversion expressions (:405-:850). The 10 uncollected tests
+(`ToDo`, `GeneralSqlMigrationCode`) are written but inactive — the
+regression six should be activated in the port (rename to `Test*`).
+`tests/sql/test_connection_error.py` adds 6 mock-based tests pinning
+the `GnrNonExistingDbException` vs `GnrSqlConnectionException`
+taxonomy and the `SystemExit` abort path (`migrator.py:181-185`).
+
 ## Riferimenti
 
-- Session: `ce254e4b-4c8c-49ae-a635-12536130ad35` (2026-07-06)
+- Session: `ce254e4b-4c8c-49ae-a635-12536130ad35` (2026-07-06); addendum verification 2026-07-08
 - Legacy source: `/Users/gporcari/Sviluppo/Genropy/genropy/worktrees/develop/gnrpy/gnr/sql/{gnrsqlmigration,adapters}/` @ `83c138bb6`
+- Adapter full inventory: doc `06`

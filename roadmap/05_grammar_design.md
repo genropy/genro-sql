@@ -1,6 +1,6 @@
 # genro-sql — SQL Model Grammar Design
 
-**Version**: 0.1.0 · **Last Updated**: 2026-07-06 · **Status**: 🔴 DA REVISIONARE
+**Version**: 0.2.0 · **Last Updated**: 2026-07-10 · **Status**: 🔴 DA REVISIONARE
 
 The design document for the new SQL model grammar, built as a
 genro-builders dialect in the `genro-sql` package. It is grounded in
@@ -378,6 +378,64 @@ Ordered; each is a separate decision to take one at a time.
    dbtype, trigger, extension, eventTrigger, CHECK, comments).
 5. **Slice 5 — round-trip** (reader + emitter).
 6. **Later — query compiler** (doc `02` as contract).
+
+---
+
+## 5. Package layout and the legacy dialect (2026-07-10)
+
+Decisions taken by the project owner, recorded here (they refine, but do
+not replace, §2–§4).
+
+### 5.1 Folder layout per grammar dialect
+
+`src/genro_sql/` is organised in one sub-package per grammar dialect,
+plus a shared base:
+
+- **`base/`** — shared base classes (a common builder base and/or a
+  renderer base) used by every dialect. Kept minimal: nothing is added
+  here speculatively. As of this slice the two dialects share no concrete
+  code, so `base/` carries only its role docstring.
+- **`legacy/`** — the backward-compatible grammar. It lets an existing
+  GenroPy legacy model (`DbModelSrc`) be ported almost verbatim: same
+  element names and same attribute names as the legacy inventory
+  (doc `01`), while obeying the builders conventions.
+- **`modern/`** — the current optimized grammar (§2.4/§2.5), moved from
+  the previous flat `sql_builder.py` / `sql_elements.py` /
+  `sql_renderer.py` **as-is** (no behavioural change in this slice).
+
+### 5.2 The legacy dialect comes first
+
+The legacy dialect is implemented before the modern one is completed: it
+is the migration path for the existing models. Its element and attribute
+names are taken **verbatim** from doc `01`. The only deliberate
+divergences from legacy source-compatibility are the builders
+conventions:
+
+- kwargs only (no positional magic, no `name::dtype` shorthand);
+- no silent string-to-bool coercions (legacy coerced `indexed`/`unique`
+  string flags — doc `01` §1.6);
+- loud errors instead of silent fallbacks (contrast the legacy
+  `addRelation` swallowing all exceptions — doc `01` §5.10).
+
+Everything else — including the open `**kwargs` plane, so that
+application/extension metadata (`ltx_*`, `variant_*`, `ext_*`, …) lands
+untouched as node attributes — mirrors the legacy grammar.
+
+### 5.3 Backend-specific grammar goes into composable mixins
+
+Backend-specific vocabulary (e.g. a future `PostgresElements` carrying
+`extension`, `eventTrigger`, `dbtype`) is **not** part of the
+backend-abstract core grammar: it is a composable grammar mixin, added
+to a builder alongside the core element mixin. This is **documented only**
+now; no backend mixin is implemented in this slice.
+
+### 5.4 `sysFields` is not grammar
+
+`sysFields` is a legacy **helper method** (a table-header convenience that
+expands into audit columns — doc `01` §5.18, `checkAutoStatic`), not a
+grammar element. It is therefore **excluded** from the legacy dialect
+grammar. The broader "reusable column blocks" idea (§2.7) covers the same
+need at the application layer, out of the pure grammar.
 
 ---
 

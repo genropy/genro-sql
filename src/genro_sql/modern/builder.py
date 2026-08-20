@@ -9,8 +9,8 @@ from __future__ import annotations
 
 from genro_builders.builder import BuilderBase
 
-from .sql_elements import SqlElements
-from .sql_renderer import SqlRenderer
+from .elements import SqlElements
+from .renderer import SqlRenderer
 
 
 class SqlBuilder(BuilderBase, SqlElements):
