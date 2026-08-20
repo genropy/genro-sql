@@ -94,6 +94,7 @@ introspection.
   > tests/test_grammar.py, tests/test_legacy_grammar.py, tests/test_skeleton.py
 
 - [!] **Phase 2**: Class-scoped grammar with typed signatures
+  > Repair started: 2026-08-20T11:52:16+02:00 — chat run-workflow (unattended)
   - Pattern reference: `../genro-builders/src/genro_builders/examples/cookbook/01_own_dialect/own_dialect.py` (typed element signatures, cardinalities, collection_key); `src/genro_sql/legacy/elements.py` (attribute vocabulary to cover); current `src/genro_sql/modern/elements.py` docstrings (attribute semantics)
   - Files: src/genro_sql/modern/elements.py, src/genro_sql/modern/builder.py, src/genro_sql/__init__.py, tests/test_grammar.py
   - Decisions:
