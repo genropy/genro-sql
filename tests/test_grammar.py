@@ -69,12 +69,15 @@ def test_virtual_column_rejects_relation():
 
 
 def test_relation_is_at_most_one_per_column():
+    """The violation is reported by validation, not raised at insertion."""
     model = _mount()
     t = model.source.db(name="d").schema(name="p").table(name="t")
     col = t.column(name="c", dtype="L")
     col.relation(to="p.a.id")
-    with pytest.raises(ValueError):
-        col.relation(to="p.b.id")  # relation[0:1]: the second exceeds the max
+    assert model.validate_source() == []  # one relation is legal
+    col.relation(to="p.b.id")
+    problems = model.validate_source()
+    assert any("at most one" in msg for _path, msgs in problems for msg in msgs)
 
 
 def test_undeclared_attribute_is_rejected_where_the_signature_is_closed():

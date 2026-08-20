@@ -135,7 +135,7 @@ class TableElements:
         """
         ...
 
-    @element(sub_tags="relation[0:1]",
+    @element(sub_tags="relation",
              _meta={"projects_column": True, "projects_relation": True})
     def column(self, name: str, dtype: DTYPE = None, size: str = None,
                notnull: bool = False, unique: bool = False,
@@ -233,7 +233,7 @@ class TableElements:
         """
         ...
 
-    @element(sub_tags="relation[0:1]", _meta={"projects_relation": True})
+    @element(sub_tags="relation", _meta={"projects_relation": True})
     def compositeColumn(self, name: str, columns: str, unique: bool = False,
                         name_long: str = None, group: str = None, **extra):
         """N physical columns packed as one navigable key.
@@ -254,7 +254,7 @@ class TableElements:
         """
         ...
 
-    @element(sub_tags="", collection_key="name")
+    @element(sub_tags="")
     def constraint(self, name: str, constraint_type: CONSTRAINT_TYPE,
                    columns: str = None, check_clause: str = None, **extra):
         """A table constraint.
@@ -298,6 +298,10 @@ class ColumnElements:
                  one_one: bool = False, case_insensitive: bool = False,
                  **extra):
         """A relation on a column. Navigable by default, physical on demand.
+
+        At most one per column: the grammar accepts the insertion so the
+        whole document can be built, and ``SqlBuilder.validate_source``
+        reports every column carrying more than one.
 
         Args:
             to: the target, ``schema.table.column`` or ``schema.table``

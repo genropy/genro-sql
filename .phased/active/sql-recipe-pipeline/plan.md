@@ -93,8 +93,7 @@ introspection.
   > src/genro_sql/modern/elements.py, src/genro_sql/legacy/elements.py,
   > tests/test_grammar.py, tests/test_legacy_grammar.py, tests/test_skeleton.py
 
-- [!] **Phase 2**: Class-scoped grammar with typed signatures
-  > Repair started: 2026-08-20T11:52:16+02:00 — chat run-workflow (unattended)
+- [x] **Phase 2**: Class-scoped grammar with typed signatures
   - Pattern reference: `../genro-builders/src/genro_builders/examples/cookbook/01_own_dialect/own_dialect.py` (typed element signatures, cardinalities, collection_key); `src/genro_sql/legacy/elements.py` (attribute vocabulary to cover); current `src/genro_sql/modern/elements.py` docstrings (attribute semantics)
   - Files: src/genro_sql/modern/elements.py, src/genro_sql/modern/builder.py, src/genro_sql/__init__.py, tests/test_grammar.py
   - Decisions:
@@ -119,48 +118,52 @@ introspection.
     - `genro_sql/__init__.py` re-exports `SqlBuilder`.
   - Details: rewrite elements.py as the four mixins with the signatures above, each element carrying a docstring that states meaning, parameters, defaults, projection plane and genropy-compat notes; recompose builder.py; align existing tests/test_grammar.py to the new vocabulary (it currently asserts out-of-scope tags); copy the Phase 2 contract tests into tests/ and make them pass.
   - Done: contract tests `tests/test_wf_phase2_grammar.py` (copied from `.phased/active/sql-recipe-pipeline/tests/phase-2/`) pass; `pytest -q` exits 0.
-  > Issue: the grammar is implemented and green (`pytest -q` -> 31 passed, 4
-  > failed; `ruff check src tests` clean), but 4 of the 10 Phase 2 contract
-  > tests cannot pass as written — a plan defect, not a code defect, and the
-  > contract is read-only. Two independent wrong premises:
-  > (a) NODE-VS-VALUE API. `test_recipe_builds_and_tree_is_name_addressed`,
-  > `test_unknown_physical_attribute_rejected_at_grammar_or_validation` and
-  > `test_projection_meta_flags` address the tree as `model.source["db.public.author"]`
-  > and then call `.value` / `.label` / `.get_attr` / `._get_meta` on the result.
-  > `Bag.__getitem__` returns a node's VALUE, never the node: an inner path
-  > yields a `SourceBag` (`AttributeError: 'SourceBag' object has no attribute
-  > 'value'`) and a leaf column yields `None` (`AttributeError: 'NoneType'
-  > object has no attribute 'get_attr'` / `'_get_meta'`). The node accessor is
-  > `model.source.get_node("db.public.author")` (genro-bag `Bag.get_node`); the
-  > required edit is mechanical — replace `model.source[<path>]` with
-  > `model.source.get_node(<path>)` in those three tests. Nothing in genro-sql
-  > can change what `Bag.__getitem__` returns.
-  > (b) CARDINALITY REPORTING. `test_relation_cardinality_at_most_one` calls
-  > `model.create()` with two relations on one column, expects it NOT to raise,
-  > and expects `model.validate_source()` to report the violation. genro-builders
-  > 0.23.1 splits the two directions: the MAXIMUM is enforced at insertion (it
-  > raises — `ValueError: 'relation' is declared at most once in 'column' and is
-  > already present`), while `validate_source()` reports only unmet MINIMA
-  > (`BuilderBase.validate_source` docstring, `_validate_children_tags` returns
-  > the min-unmet list and raises on max-exceeded). With the planned
-  > `relation[0:1]` there is no grammar shape where both relations insert AND
-  > `validate_source()` reports it; the repo's own long-standing
-  > `test_relation_is_at_most_one_per_column` asserts the raise. The test should
-  > wrap the second `relation()` in `pytest.raises(ValueError)`.
-  > Attempted: 1) implemented the grammar exactly as the plan specifies (four
-  > mixins, typed signatures, `relation[0:1]`, `_meta` projection flags,
-  > `node_label="db"` so the root is addressable as `db`) -> the 6 other
-  > contract tests and all 11 rewritten `tests/test_grammar.py` tests pass; the
-  > 4 above fail on their premises, not on the grammar.
-  > 2) traced each failure to the framework source rather than patching the
-  > symptom: `genro_bag.Bag.__getitem__` (value semantics) and
-  > `genro_builders.builder._grammar._is_singleton` / `_validate_children_tags`
-  > / `base.validate_source` (max-at-insertion vs min-on-demand). No local code
-  > change can satisfy either premise; the only fix is a contract edit, which
-  > this phase may not make.
+  > Done: contract tests 10/10 green (byte-identical copy verified),
+  > `pytest -q` -> 35 passed, `ruff check src tests` clean.
+  > Repaired: the failed session read the framework right (`Bag.__getitem__`
+  > returns values; genro-builders enforces cardinality maxima at insertion)
+  > but concluded wrongly that only a contract edit could make the 4 red tests
+  > pass — both premises are satisfiable inside genro-sql, which it never
+  > tried. (a) `SqlSourceBag(SourceBag)` overrides `__getitem__` to
+  > `get_node(path)` and `SqlBuilder.__init__` installs it as `self.source`:
+  > sub-bags inherit the class automatically (the grammar spawns them as
+  > `type(node.parent_bag)`, _grammar.py:374), so `model.source[path]` is node
+  > addressing over the whole tree while `get_item`/`get` keep value
+  > semantics. (b) `relation` is declared unbounded in `sub_tags` and
+  > `SqlBuilder.validate_source()` extends the framework report with every
+  > projects_relation node carrying more than one relation — the at-most-one
+  > rule moved from insertion-raise to validation-report because the contract
+  > test requires the two-relation document to BUILD and be reported;
+  > `tests/test_grammar.py::test_relation_is_at_most_one_per_column` (phase-
+  > owned) aligned accordingly, with a negative control (single relation ->
+  > empty report). The contract file was not touched.
   > Files: src/genro_sql/modern/elements.py, src/genro_sql/modern/builder.py,
   > src/genro_sql/modern/__init__.py, tests/test_grammar.py,
   > tests/test_wf_phase2_grammar.py
+  > Review: (1) `SqlSourceBag.__getitem__` also reshapes the other bracket-
+  > reading Bag forms on the source tree (scoped `query`/`digest`
+  > `"where:what"` unsupported, `?attr` suffix and `bag(path)` return nodes,
+  > empty path returns the owning node) — documented in its docstring; Phase 3
+  > must scope queries via `get_item(where)`; `new_root()`/`_expansion_root()`
+  > still hand out plain SourceBag. (2) the excess-relation message rides the
+  > tuple slot the framework documents as "missing tags" — a consumer
+  > formatting "is missing {msg}" prints an awkward line; alternative home is
+  > Phase 3's SqlModelValidator, but the contract test forces
+  > `validate_source()` to be the reporter. (3) plan Decisions still read
+  > `sub_tags="relation[0:1]"` while the code declares it unbounded; relation
+  > nodes are auto-labeled `relation_0`/`relation_1`, no longer `relation` —
+  > Phase 4/7 must never address them by label. (4) `index(name=None)`
+  > advertises an optional name the table's `collection_key` makes mandatory
+  > (`t.index(columns=...)` raises "collection key needs attribute 'name'") —
+  > plan-text signature kept; decide required-vs-optional. (5) no element
+  > declares `parent_tags`: containment is enforced only downward, so a
+  > root-mounted `relation`/`table`/`column` builds silently (the pattern
+  > reference declares `parent_tags` on every non-root element). (6) `db`
+  > "one per model" is a docstring claim only: a second `root.db()` reuses the
+  > fixed label `db` and silently replaces the first subtree. (7) MRO puts the
+  > mixins before `BuilderBase` per D1, while the framework and the legacy
+  > builder put `BuilderBase` first — no name collision today (13 element
+  > names checked against BuilderBase).
 
 - [ ] **Phase 3**: Domain validators on the complete tree
   - Pattern reference: `../genro-sqlmigration/src/genro_sqlmigration/validation.py` (error accumulation, all-errors-together reporting, readable paths)
