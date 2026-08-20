@@ -23,13 +23,14 @@ from .modern import SqlBuilder, SqlRenderer
 __version__ = "0.1.0"
 
 __all__ = [
-    "LegacySqlBuilder", "SqlBuilder", "SqlMigrationRenderer", "SqlRenderer",
+    "LegacySqlBuilder", "SqlBuilder", "SqlMigrationRenderer",
+    "SqlModelReader", "SqlRenderer",
 ]
 
 
 def __getattr__(name: str):  # wf:phase-4:new
     """Resolve the names that need an optional dependency, on first use."""
-    if name == "SqlMigrationRenderer":
+    if name in ("SqlMigrationRenderer", "SqlModelReader"):
         from . import modern
         return getattr(modern, name)
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

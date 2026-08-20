@@ -8,8 +8,10 @@ node internals.
 """
 
 import pytest
+from genro_sqlmigration import JsonStructureProducer
+from genro_sqlmigration.structures import json_equal
 
-from genro_sql import SqlBuilder
+from genro_sql import SqlBuilder, SqlMigrationRenderer, SqlModelReader
 
 
 class _Model(SqlBuilder):
@@ -131,3 +133,30 @@ def test_out_of_scope_elements_are_absent():
     for gone in ("view", "function", "sequence", "dbtype", "trigger",
                  "eventTrigger"):
         assert gone not in SqlBuilder._class_schema, gone
+
+
+def test_composite_target_resolves_to_its_member_columns():
+    """D4: a multi-column FK to a non-pkey key targets a composite."""
+    normalized = JsonStructureProducer({
+        "db": "d",
+        "schemas": [{"name": "s", "tables": [
+            {"name": "parent", "pkey": "id",
+             "columns": [{"name": "id", "dtype": "serial"},
+                         {"name": "a", "dtype": "L"},
+                         {"name": "b", "dtype": "L"}],
+             "constraints": [{"type": "UNIQUE", "columns": ["a", "b"]}]},
+            {"name": "child", "pkey": "id",
+             "columns": [{"name": "id", "dtype": "serial"},
+                         {"name": "pa", "dtype": "L"},
+                         {"name": "pb", "dtype": "L"}],
+             "relations": [
+                 {"columns": ["pa", "pb"], "related_schema": "s",
+                  "related_table": "parent", "related_columns": ["a", "b"]},
+             ]},
+        ]}],
+    }).get_json_struct()
+    builder = SqlModelReader(normalized).to_builder()
+    relation = builder.source.query(
+        "#n", deep=True, condition=lambda n: n.node_tag == "relation")[0]
+    assert relation.get_attr("to") == "s.parent.a_b"
+    assert json_equal(normalized, SqlMigrationRenderer(builder).render())

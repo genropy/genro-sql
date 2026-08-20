@@ -212,20 +212,24 @@ class SqlMigrationRenderer:  # wf:phase-4:new
                 schema_name, table_name, columns, attributes=attributes,
             )
             item["relations"][relation["entity_name"]] = relation
-            indexed.append(columns)
+            if node.get_attr("indexed", True):
+                indexed.append(columns)
         return indexed
 
     def _resolve_target(self, node) -> tuple[str, str, list[str]]:  # wf:phase-4:new
         """``relation.to`` as ``(schema, table, columns)``.
 
         A two-part target means the target's pkey columns; a three-part
-        one names a single column. The domain validator has already
-        proved both resolve.
+        one names a single column, or the compositeColumn packing the
+        target key. The domain validator has already proved they resolve.
         """
         parts = [part.strip() for part in str(node.get_attr("to")).split(".")]
-        if len(parts) == 3:
-            return parts[0], parts[1], [parts[2]]
         target = self._tables[(parts[0], parts[1])]
+        if len(parts) == 3:
+            composite = target["composites"].get(parts[2])
+            if composite is None:
+                return parts[0], parts[1], [parts[2]]
+            return parts[0], parts[1], _names(composite.get_attr("columns"))
         return parts[0], parts[1], _names(target["node"].get_attr("pkey"))
 
     def _fill_constraints(self, schema_name, table_name, table,

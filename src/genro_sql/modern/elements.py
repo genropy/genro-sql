@@ -293,7 +293,8 @@ class ColumnElements:
     @element(sub_tags="")
     def relation(self, to: str, foreign_key: bool = False,
                  on_delete: FK_ACTION = None, on_update: FK_ACTION = None,
-                 deferred: bool = False, back_reference: str = None,
+                 deferred: bool = False, indexed: bool = True,
+                 back_reference: str = None,
                  one_name: str = None, many_name: str = None,
                  one_one: bool = False, case_insensitive: bool = False,
                  **extra):
@@ -311,6 +312,9 @@ class ColumnElements:
             on_delete: referential action on delete.
             on_update: referential action on update.
             deferred: INITIALLY DEFERRED.
+            indexed: the supporting index of the foreign key. On by
+                default (legacy parity, D3); ``False`` states that the
+                columns are deliberately left unindexed.
             back_reference: semantic; navigable path of the many side.
             one_name: semantic; human label of the one side.
             many_name: semantic; human label of the many side.

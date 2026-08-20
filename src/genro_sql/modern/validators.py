@@ -199,6 +199,9 @@ class SqlModelValidator:  # wf:phase-3:new
     def _resolve_target(self, path: str, node):  # wf:phase-3:new
         """Target table and columns of ``relation.to``, errors reported.
 
+        A three-part target names a physical column, or the
+        compositeColumn packing the target key.
+
         Returns:
             ``(table_key, column_names)`` or ``None`` when unresolvable.
         """
@@ -219,7 +222,12 @@ class SqlModelValidator:  # wf:phase-3:new
         if target is None:
             self._error(path, f"relation target table '{to}' does not exist")
             return None
-        columns = [parts[2]] if len(parts) == 3 else self._pkey_names(target)
+        if len(parts) == 3:
+            composite = target["composites"].get(parts[2])
+            columns = (self._names(composite.get_attr("columns"))
+                       if composite is not None else [parts[2]])
+        else:
+            columns = self._pkey_names(target)
         if not columns:
             self._error(
                 path,

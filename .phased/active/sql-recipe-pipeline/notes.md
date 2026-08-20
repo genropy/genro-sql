@@ -85,3 +85,38 @@
   DDL time; at projection time the renderer stays byte-parity with
   `JsonStructureProducer`, which defaults `dtype` regardless. Diverging
   here would break the golden oracle, not fix anything.
+
+## Phase 6
+
+- **The round-trip law and D3 collide, and the grammar gained one knob so
+  both survive.** `JsonStructureProducer` never invents an index for a
+  foreign key; the renderer always does (D3, legacy parity, encoded in the
+  Phase 4 golden). So `render(reader(A))` grew an index every FK fixture of
+  the Phase 6 contract lacks, and no reader-only trick can suppress it —
+  the sugar fires on the projection side. `relation` therefore declares
+  `indexed: bool = True`: the default keeps D3 and the Phase 4 golden
+  untouched, and `indexed=False` states that the columns are deliberately
+  unindexed. The reader sets it exactly when the JSON carries no index over
+  those columns, in that order.
+- **The reader never re-derives sugar.** Every index in the JSON becomes a
+  real `index` element and `column.indexed` is never set: the sugar is an
+  authoring convenience of the forward path, and re-deriving it would make
+  the reverse path guess.
+- **Hashed index names travel verbatim, unlike the other hashes.** The plan
+  wanted them dropped, but `index.name` is the table's collection key (an
+  index cannot mount anonymously) AND the `index_name` the renderer echoes
+  into the JSON — it is not re-derived. Dropping the hash would fail to
+  mount and, worse, rename the index in the database. Relations stay
+  anonymous and hash-named UNIQUE constraints still come back as
+  `unique=True` on a composite, which is where the decision's intent lives.
+- **D4's composite target is now reachable.** The renderer's and the
+  validator's `_resolve_target` accept a three-part `to` whose last part
+  names a compositeColumn, expanding it into its members; the reader
+  synthesizes that target composite when `related_columns` is not the
+  target pkey. Without those four lines the synthesis the plan mandates
+  would emit a relation to a column that does not exist.
+- **Composites are planned before the tree is built.** A target composite
+  belongs to a table that may be mounted before the relation naming it is
+  read, so `_plan_composites` walks the whole structure first and
+  `_add_table` mounts what the plan asks for. Same pass merges the FK and
+  UNIQUE needs of one column set into a single composite.

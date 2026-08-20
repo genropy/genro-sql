@@ -280,7 +280,32 @@ introspection.
   - Details: write conftest fixture + integration tests (copied contract tests ARE the test file for this phase); genro-sqlmigration is installed editable in the bench venv — no pyproject change needed to run.
   - Done: `pytest -q tests/test_wf_phase5_integration.py` exits 0 with the local PG reachable (SQLite cases and PG cases both run); full `pytest -q` exits 0.
 
-- [ ] **Phase 6**: SqlModelReader — normalized JSON to source tree
+- [x] **Phase 6**: SqlModelReader — normalized JSON to source tree
+  > Done: contract tests 11/11 green (byte-identical copy verified), full
+  > `pytest -q` -> 71 passed exit 0, `ruff check src tests` clean.
+  > `SqlModelReader(normalized).to_builder()` builds an anonymous recipe
+  > whose `main` is the de-normalization itself, then domain-validates it.
+  > Two passes as planned, plus a composite PLAN computed before the first
+  > element mounts (a target composite belongs to a table that may be built
+  > before the relation naming it is read). Strict mode refuses any
+  > attribute key outside `structure-1.0` and any event trigger, naming the
+  > JSON path. Two plan decisions were adjusted to reality and recorded in
+  > notes.md: (1) D3's automatic FK index made the round-trip law
+  > unsatisfiable, so `relation` gained `indexed: bool = True` — default
+  > keeps D3 and the Phase 4 golden untouched, the reader sets `False` when
+  > the JSON carries no such index; (2) hashed INDEX names travel verbatim
+  > (the name is the collection key and the echoed physical `index_name`),
+  > while relations stay anonymous and hash-named UNIQUE constraints still
+  > return as `unique=True` on a composite. D4's composite target was made
+  > reachable end-to-end (renderer and validator expand a three-part `to`
+  > naming a compositeColumn) and is covered by a test in test_grammar.py.
+  > Files: src/genro_sql/modern/reader.py, src/genro_sql/modern/elements.py,
+  > src/genro_sql/modern/migration.py, src/genro_sql/modern/validators.py,
+  > src/genro_sql/modern/__init__.py, src/genro_sql/__init__.py,
+  > tests/test_wf_phase6_reader.py, tests/test_grammar.py
+  > Review: `relation.indexed` is a new physical knob the plan did not
+  > foresee; Phase 8's grammar document and Phase 9 should confirm it reads
+  > as part of the vocabulary rather than as a reader escape hatch.
   - Pattern reference: `../genro-sqlmigration/src/genro_sqlmigration/xml_producer.py::struct_to_xml` (the de-normalization precedent: hashes dropped, single-column relations re-nested under their column, multi-column forms expanded)
   - Files: src/genro_sql/modern/reader.py, src/genro_sql/__init__.py, tests/test_grammar.py
   - Decisions:
