@@ -1,0 +1,5 @@
+✓ Phase 5 repaired: both blockers were fixture-level, not upstream — the migrator's diff label comes from `db.get_dbname()`, so the fixtures carry the recipe name from the database side; the SQLite serial/I event is absorbed by capability gating.
+
+**Esito.** Fase 5 chiusa `[x]` con nota `> Repaired:`; commit `8741d9a`. Done dimostrato in sessione: contract test 4/4 (SQLite + 3 PG su server reale, non skippati), `pytest -q` 59 passed exit 0, ruff pulito, phase-verifier indipendente PASS con controllo di non-vacuità (stub di `applyChanges` → tutti i test falliscono).
+
+**La diagnosi precedente era rovesciata.** Il "database `library` pre-esistente a rischio dati" lo aveva creato la stessa run fallita ed è vuoto (verificato) — resta sul server locale in attesa di un tuo `DROP DATABASE library`, che non eseguo in autonomia. Le altre note di giudizio (il ramo `db_creation` mai esercitato su PG per costruzione, e le proposte di fix upstream su sqlite_reader/`applyCapabilities`) sono registrate nel `> Review:` della fase per la finalize.
