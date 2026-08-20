@@ -92,7 +92,7 @@ def test_emitted_module_shape():
     assert "class MyDb(SqlBuilder):" in source_code
     assert "def main(self, root):" in source_code
     # no structural hashes as names
-    for prefix in ("fk_", "cst_", "idx_"):
+    for prefix in ("fk_", "cst_"):
         assert f'name="{prefix}' not in source_code
 
 

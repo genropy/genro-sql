@@ -318,7 +318,19 @@ introspection.
   - Details: implement reader.py; export `SqlModelReader`; copy Phase 6 contract tests and make them pass.
   - Done: contract tests `tests/test_wf_phase6_reader.py` pass — round-trip `JSON A -> to_builder() -> SqlMigrationRenderer.render() -> JSON B` with `json_equal(A, B)` (order-insensitive) on fixtures covering: minimal table, all dtypes, single+composite pkey, single+composite UNIQUE, CHECK, single+multi-column FK with actions and deferrable, index with DESC/where/method/with_options, unicode comments, two schemas with same-named tables; `pytest -q` exits 0.
 
-- [!] **Phase 7**: SqlPythonEmitter — source tree to Python recipe, full round-trip
+- [x] **Phase 7**: SqlPythonEmitter — source tree to Python recipe, full round-trip
+  > Done: contract tests 5/5 green after the ratified contract fix (byte-identical
+  > copies verified), `pytest -q` -> 76 passed exit 0, `ruff check src tests` clean.
+  > The PG closure (apply -> introspect -> read -> emit -> exec -> render -> empty
+  > diff) ran against the live server.
+  > Plan defect ratified by the foreman (consult answered `stop`): the contract's
+  > `'name="idx_' not in source_code` assertion contradicted three ratified facts
+  > (Phase 4 golden makes index recipe `name` the physical `index_name`; `table`'s
+  > `collection_key="name"` makes anonymous indexes unbuildable; Phase 6's
+  > round-trip returns hashed `index_name` verbatim). Fix: `"idx_"` dropped from
+  > the forbidden-prefix tuple in the contract test, both copies —
+  > `.phased/.../tests/phase-7/` and `tests/`. The phase's code was already
+  > committed in 34ac0cf and needed no repair.
   > Issue: plan-defect claim — `tests/test_wf_phase7_emitter.py::test_emitted_module_shape` asserts `'name="idx_' not in source_code`, and that
   > assertion cannot hold for HUMAN_FIXTURE together with `test_emit_exec_render_closes_the_loop`. Three ratified facts close the box:
   > (1) Phase 4's golden contract writes `recipe.index(name="ix_title", ...)` against a human twin carrying `{"name": "ix_title"}`, so an index's recipe
