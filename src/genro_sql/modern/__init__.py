@@ -3,8 +3,8 @@
 
 The current, backend-abstract grammar designed in
 ``roadmap/05_grammar_design.md`` (§2.4/§2.5): a ``db → schema → table``
-hierarchy with a column family, relations on columns, and slots for
-beyond-legacy entities (view, function, sequence, dbtype, trigger).
+hierarchy with a column family, relations on the physical column kinds,
+constraints, indexes and database extensions.
 
 :class:`SqlBuilder` carries the grammar; :class:`SqlRenderer` emits DDL.
 """

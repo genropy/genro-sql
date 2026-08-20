@@ -1,23 +1,30 @@
 # Copyright 2025 Softwell S.r.l. - SPDX-License-Identifier: Apache-2.0
 """SqlBuilder — SQL model dialect for genro-builders.
 
-Grammar only: the vocabulary lives in :class:`SqlElements`, rendering
-in :class:`SqlRenderer` exposed via the ``renderer_sql`` property.
+Grammar only: the vocabulary lives in the four mixins of
+:mod:`genro_sql.modern.elements`, rendering in :class:`SqlRenderer` exposed
+via the ``renderer_sql`` property.
 """
 
 from __future__ import annotations
 
 from genro_builders.builder import BuilderBase
 
-from .elements import SqlElements
+from .elements import ColumnElements, DbElements, SchemaElements, TableElements
 from .renderer import SqlRenderer
 
 
-class SqlBuilder(BuilderBase, SqlElements):
-    """SQL model dialect builder. Grammar only — rendering on
-    ``SqlRenderer`` via the ``renderer_sql`` property."""
+class SqlBuilder(DbElements, SchemaElements, TableElements, ColumnElements,
+                 BuilderBase):
+    """SQL model dialect builder.
 
-    _name = "sql"
+    One dialect, one flat namespace: the grammar is split into mixins by
+    containment level for readability, never into sub-dialects — a mounted
+    sub-dialect loses the name-keyed addressing (``db.public.author.id``)
+    the whole model rests on.
+    """
+
+    _name = "sqlmodel"
     _default_render_mode = "sql"
 
     @property
@@ -33,7 +40,10 @@ class SqlBuilder(BuilderBase, SqlElements):
 if __name__ == "__main__":
     class _Demo(SqlBuilder):
         def main(self, root):
-            pass  # grammar not defined yet: empty model
+            db = root.db(name="demo")
+            recipe = db.schema(name="public").table(name="recipe", pkey="id")
+            recipe.column(name="id", dtype="serial")
+            recipe.column(name="title", dtype="A", size="0:160", notnull=True)
 
     model = _Demo()
     model.create()

@@ -1,9 +1,10 @@
 # Copyright 2025 Softwell S.r.l. - SPDX-License-Identifier: Apache-2.0
-"""Grammar tests: the element vocabulary and sub_tags validation.
+"""Grammar tests: the element vocabulary, its signatures and containment.
 
 Outcome-based: the tests mutate only through the canonical builder API and
 assert observable results (a model built with every element mounts; illegal
-placements raise), never auto-generated labels or node internals.
+placements and undeclared attributes raise), never auto-generated labels or
+node internals.
 """
 
 import pytest
@@ -27,8 +28,7 @@ def test_full_vocabulary_mounts():
     model = _mount()
     db = model.source.db(name="testdb")
     db.extension(name="unaccent")
-    db.eventTrigger(name="on_ddl")
-    s = db.schema(name="public", sqlschema="public")
+    s = db.schema(name="public", comment="the default schema")
     t = s.table(name="recipe", pkey="id", caption_field="title")
     t.column(name="id", dtype="L", notnull=True)
     author = t.column(name="author_id", dtype="L", indexed=True)
@@ -41,12 +41,14 @@ def test_full_vocabulary_mounts():
     cc.relation(to="public.other.k2", foreign_key=True)
     t.constraint(name="uq", constraint_type="UNIQUE", columns="id,author_id")
     t.index(name="ix", columns="author_id")
-    t.trigger(name="trg", timing="BEFORE", events="INSERT")
-    s.view(name="v", definition="SELECT 1")
-    s.function(name="fn", language="sql", body="SELECT 1")
-    s.sequence(name="seq", start_value="1")
-    s.dbtype(name="mood", type_kind="ENUM", enum_values="a,b")
     assert sum(1 for _ in model.source) == 1  # one db at the top
+
+
+def test_tree_is_addressed_by_name():
+    model = _mount()
+    t = model.source.db(name="d").schema(name="p").table(name="t", pkey="c")
+    t.column(name="c", dtype="L")
+    assert model.source.get_node("db.p.t.c") is not None
 
 
 def test_column_rejects_non_column_child():
@@ -57,11 +59,13 @@ def test_column_rejects_non_column_child():
         col.column(name="nested", dtype="L")
 
 
-def test_virtual_column_accepts_relation():
+def test_virtual_column_rejects_relation():
+    """A virtual column reads through an existing relation, never its own."""
     model = _mount()
     t = model.source.db(name="d").schema(name="p").table(name="t")
     fc = t.formulaColumn(name="f", sql_formula="1")
-    fc.relation(to="p.other.id")  # a relation under a virtual column is legal
+    with pytest.raises(ValueError):
+        fc.relation(to="p.other.id")
 
 
 def test_relation_is_at_most_one_per_column():
@@ -70,4 +74,57 @@ def test_relation_is_at_most_one_per_column():
     col = t.column(name="c", dtype="L")
     col.relation(to="p.a.id")
     with pytest.raises(ValueError):
-        col.relation(to="p.b.id")  # relation[:1]: the second exceeds the max
+        col.relation(to="p.b.id")  # relation[0:1]: the second exceeds the max
+
+
+def test_undeclared_attribute_is_rejected_where_the_signature_is_closed():
+    """``db`` declares no ``**extra``, so a typo cannot become an attribute."""
+    model = _mount()
+    with pytest.raises(ValueError):
+        model.source.db(name="d", dbnmae="typo")
+
+
+def test_extra_attributes_are_carried_where_the_signature_is_open():
+    model = _mount()
+    t = model.source.db(name="d").schema(name="p").table(name="t")
+    t.column(name="c", dtype="L", x_widget="slider")
+    node = model.source.get_node("db.p.t.c")
+    assert node.get_attr("x_widget") == "slider"
+
+
+def test_dtype_must_be_a_known_code():
+    model = _mount()
+    t = model.source.db(name="d").schema(name="p").table(name="t")
+    with pytest.raises(ValueError):
+        t.column(name="c", dtype="NOPE")
+
+
+def test_constraint_type_must_be_known():
+    model = _mount()
+    t = model.source.db(name="d").schema(name="p").table(name="t")
+    with pytest.raises(ValueError):
+        t.constraint(name="x", constraint_type="EXCLUDE", columns="c")
+
+
+def test_projection_flags_ride_on_the_nodes():
+    model = _mount()
+    t = model.source.db(name="d").schema(name="p").table(name="t")
+    t.column(name="a", dtype="L")
+    t.column(name="b", dtype="L")
+    t.compositeColumn(name="ab", columns="a,b")
+    t.formulaColumn(name="f", sql_formula="1")
+    col = model.source.get_node("db.p.t.a")
+    composite = model.source.get_node("db.p.t.ab")
+    formula = model.source.get_node("db.p.t.f")
+    assert col._get_meta("projects_column") is True
+    assert col._get_meta("projects_relation") is True
+    assert composite._get_meta("projects_column") is None
+    assert composite._get_meta("projects_relation") is True
+    assert formula._get_meta("projects_column") is None
+    assert formula._get_meta("projects_relation") is None
+
+
+def test_out_of_scope_elements_are_absent():
+    for gone in ("view", "function", "sequence", "dbtype", "trigger",
+                 "eventTrigger"):
+        assert gone not in SqlBuilder._class_schema, gone

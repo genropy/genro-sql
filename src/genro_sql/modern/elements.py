@@ -1,250 +1,316 @@
 # Copyright 2025 Softwell S.r.l. - SPDX-License-Identifier: Apache-2.0
 """SQL model grammar — element definitions (optimized dialect).
 
-Grammar mixin for :class:`~genro_sql.sql_builder.SqlBuilder`. The design is
-documented in ``roadmap/05_grammar_design.md``; this is the "optimized"
-dialect (§2.4/§2.5 decisions), a superset of the legacy ``DbModelSrc``
-vocabulary (inventory in ``roadmap/01_legacy_model_grammar.md``).
+Four grammar mixins, one per containment level, composed into
+:class:`~genro_sql.modern.builder.SqlBuilder`:
+
+- :class:`DbElements` — ``db``, ``extension``
+- :class:`SchemaElements` — ``schema``
+- :class:`TableElements` — ``table`` and everything a table holds
+- :class:`ColumnElements` — ``relation``
 
 Hierarchy::
 
     db
     ├── schema
-    │   ├── table
-    │   │   ├── column / aliasColumn / formulaColumn / subQueryColumn /
-    │   │   │   pyColumn / compositeColumn   (each carries one relation)
-    │   │   ├── constraint
-    │   │   ├── index
-    │   │   └── trigger        (beyond legacy — migrator wave 2)
-    │   ├── view               (beyond legacy — migrator wave 1)
-    │   ├── function           (beyond legacy — migrator wave 2)
-    │   ├── sequence           (beyond legacy — migrator wave 3)
-    │   └── dbtype             (beyond legacy — migrator wave 3)
-    ├── extension              (migrate-only in legacy)
-    └── eventTrigger           (migrate-only in legacy — no-op today)
+    │   └── table
+    │       ├── column / aliasColumn / formulaColumn / subQueryColumn /
+    │       │   pyColumn / compositeColumn
+    │       │   └── relation          (column and compositeColumn only)
+    │       ├── constraint
+    │       └── index
+    └── extension
 
-Two planes (§2.3). The **physical** plane projects into the
-genro-sqlmigration JSON (``structure-1.0``): ``db``/``schema``/``table``,
-physical ``column`` attributes, ``foreign_key`` relations, ``constraint``,
-``index`` (plus the beyond-legacy entities the migrator waves consume). The
-**semantic** plane (``name_*``, ``group``, ``caption_field``, triggers,
-validators…) travels as open node attributes; the migrator projection
-ignores it, the compiler/GUI read it.
+Two planes. The **physical** plane projects into the genro-sqlmigration
+JSON (``structure-1.0``): ``db``/``schema``/``table``, physical ``column``
+attributes, ``foreign_key`` relations, ``constraint``, ``index``. The
+**semantic** plane (``name_*``, ``group``, ``caption_field``, …) travels as
+node attributes the migration projection ignores; the compiler and the GUI
+read it.
 
-Conventions (§2.5): element names ARE the grammar (documented — the SQL
-model is a non-obvious domain); kwargs only, no ``name::dtype`` shorthand;
-loud errors, no silent fallbacks. ``db``/``schema``/``table`` are name-keyed
-collections (``collection_key="name"``): a node is addressed by its own
-name (``public.recipe.id``) — a 1:1 map onto the name-keyed dicts of the
+Signatures are **semi-closed**: every element declares its physical AND its
+enumerated semantic parameters, typed, and accepts ``**extra`` on top. The
+grammar takes any extra key; the domain validator requires it to start with
+``x_``, so a typo (``dtypo=``) is a loud error naming the declared set
+instead of a silently stored attribute.
+
+``db``, ``schema`` and ``table`` are name-keyed collections
+(``collection_key="name"``): a node is addressed by its own name
+(``db.public.recipe.id``) — a 1:1 map onto the name-keyed dicts of the
 migration JSON.
 
-Dialect-divergence register (forms deferred, resolved when the strict
-dialect + migration land): ``caption_field`` (optimized primary) vs
-``rowcaption`` (legacy template); attribute naming case (snake vs camel).
+Projection flags ride on each element's ``_meta`` and are read from the node
+(``node._get_meta("projects_column")``): the renderer and the validators
+dispatch on them, never on tag strings.
 """
 
 from __future__ import annotations
 
+from typing import Literal
+
 from genro_builders.builder import element
 
-# Column-family tags: every kind that can host a relation. Reused as the
-# table's column-family sub_tags (kept in one place to stay in sync).
+#: Genro normalized type codes. Mirrors
+#: ``genro_sqlmigration.structures.DTYPE_CODES`` — declared locally because
+#: the grammar must not import the migration package (the dependency is
+#: one-way). The renderer's golden test asserts the two stay in step.
+DTYPE = Literal[
+    "A", "B", "C", "D", "DH", "DHZ", "DT", "H", "HZ", "I", "L", "M", "N",
+    "O", "P", "R", "T", "TSV", "VEC", "X", "Z", "jsonb", "serial",
+]
+
+#: Referential actions a foreign key may declare. ``NO ACTION`` is absent on
+#: purpose: it is the SQL default and the migration structure strips it.
+FK_ACTION = Literal["CASCADE", "SET NULL", "SET DEFAULT", "RESTRICT"]
+
+#: Table constraint kinds. Single-column uniqueness is the ``unique`` column
+#: attribute, not a constraint entity.
+CONSTRAINT_TYPE = Literal["UNIQUE", "CHECK"]
+
+# Column-family tags. Only ``column`` and ``compositeColumn`` project
+# physically, but every kind is a table child.
 _COLUMN_TAGS = (
     "column, aliasColumn, formulaColumn, subQueryColumn, "
     "pyColumn, compositeColumn"
 )
 
 
-class SqlElements:
-    """Grammar mixin for SqlBuilder — the optimized SQL-model dialect."""
+class DbElements:
+    """Database-level grammar: the root and its extensions."""
 
-    # -- structure ------------------------------------------------------
+    @element(sub_tags="schema, extension", collection_key="name",
+             node_label="db")
+    def db(self, name: str):
+        """Database root, one per model.
 
-    @element(sub_tags="schema, extension, eventTrigger", collection_key="name")
-    def db(self, **kwargs):
-        """Database root. ``name`` -> the JSON ``entity_name`` (dbname)."""
-        ...
-
-    @element(sub_tags="table, view, function, sequence, dbtype",
-             collection_key="name")
-    def schema(self, **kwargs):
-        """A database schema (legacy 'package').
-
-        Physical: ``sqlschema``, ``sqlprefix``, ``multi_tenant``.
-        Semantic (open): ``comment``, ``name_*``, ``pkgcode``.
+        Args:
+            name: the database name — the JSON ``entity_name``.
         """
         ...
-
-    @element(sub_tags=f"{_COLUMN_TAGS}, constraint, index, trigger",
-             collection_key="name")
-    def table(self, **kwargs):
-        """A table.
-
-        Physical: ``pkey`` (comma-joined physical column names, the JSON
-        ``pkeys`` string). Semantic (open): ``comment``, ``caption_field``
-        (optimized primary) / ``rowcaption`` (legacy template),
-        ``name_plural``, ``lastTS``, ``logicalDeletionField``,
-        ``draftField``, ``name_*``.
-        """
-        ...
-
-    # -- column family (each carries at most one relation) --------------
-
-    @element(sub_tags="relation[:1]")
-    def column(self, **kwargs):
-        """A physical column.
-
-        Physical attrs projected to the migrator JSON (``COL_JSON_KEYS``):
-        ``dtype``, ``size``, ``notnull``, ``sqldefault``, ``unique``,
-        ``indexed``, ``sql_type``, ``extra_sql``, ``generated_expression``,
-        ``comment``. ``dtype`` uses the Genro normalized codes; ``sql_type``
-        is the native-type escape hatch and wins when present. Semantic
-        (open): ``group``, ``readonly``, ``encrypted``, ``localized``,
-        ``variant``, field triggers (``onInserting``/``onUpdating``/…),
-        ``name_*``.
-        """
-        ...
-
-    @element(sub_tags="relation[:1]")
-    def aliasColumn(self, **kwargs):
-        """A virtual column that projects a related column. Attr:
-        ``relation_path`` (``@rel.column``). Does not project physically.
-        """
-        ...
-
-    @element(sub_tags="relation[:1]")
-    def formulaColumn(self, **kwargs):
-        """A virtual column defined by SQL. One of ``sql_formula`` /
-        ``select`` / ``exists``; ``dtype`` (default ``'A'``). Does not
-        project physically.
-        """
-        ...
-
-    @element(sub_tags="relation[:1]")
-    def subQueryColumn(self, **kwargs):
-        """A virtual column defined by a sub-query. Attrs: ``query``,
-        ``mode`` (``json`` | ``xml`` | scalar-aggregate). Mode expansion is
-        the renderer's job, not grammar-time (§3 q7). Does not project
-        physically.
-        """
-        ...
-
-    @element(sub_tags="relation[:1]")
-    def pyColumn(self, **kwargs):
-        """A virtual column computed in Python. Attr: ``py_method``
-        (default ``pyColumn_<name>`` on the table class). Does not project
-        physically.
-        """
-        ...
-
-    @element(sub_tags="relation[:1]")
-    def compositeColumn(self, **kwargs):
-        """A column packing N physical columns as one navigable key
-        (first-class, §2.2). Attr: ``columns`` (comma-joined member
-        names). THE mechanism for composite pkey / unique / FK: a composite
-        relation is a ``relation`` on one compositeColumn. Its members are
-        physical, so a composite key projects as multi-column
-        ``columns``/``related_columns`` in the migrator JSON.
-        """
-        ...
-
-    # -- relation (declared on any column kind) -------------------------
 
     @element(sub_tags="")
-    def relation(self, **kwargs):
-        """A relation on a column. Logical/navigable by default; the
-        physical FK is opt-in (``foreign_key=True``, §2.4).
+    def extension(self, name: str, **extra):
+        """A PostgreSQL extension.
 
-        Attrs: ``to`` (target ``schema.table.column``; target columns
-        default to the target pkey), ``foreign_key`` (default False),
-        ``case_insensitive``, ``back_reference`` (navigable path of the
-        many side, mandatory-with-error on ambiguity), ``one_name`` /
-        ``many_name`` (human labels), ``navigable``, ``one_one``,
-        ``on_delete`` / ``on_update`` (+ ``_sql`` physical variants),
-        ``deferred``. Only ``foreign_key=True`` relations project into the
-        migrator JSON; a relation under a virtual column cannot be a
-        physical FK.
+        Rendered ``CREATE EXTENSION IF NOT EXISTS`` and never dropped.
+
+        Args:
+            name: the extension name (``pg_trgm``, ``unaccent``, …).
         """
         ...
 
-    # -- secondary structures -------------------------------------------
 
-    @element(sub_tags="", collection_key="name")
-    def constraint(self, **kwargs):
-        """A multi-column table constraint. ``constraint_type`` is
-        ``'UNIQUE'`` (with ``columns``) or ``'CHECK'`` (with
-        ``check_clause``). Single-column unique is the ``unique`` column
-        attribute, not a constraint entity.
+class SchemaElements:
+    """Schema-level grammar."""
+
+    @element(sub_tags="table", collection_key="name")
+    def schema(self, name: str, comment: str = None, **extra):
+        """A database schema (a 'package' in the legacy vocabulary).
+
+        Args:
+            name: the schema name — physical, and this node's key.
+            comment: semantic; free description.
+        """
+        ...
+
+
+class TableElements:
+    """Table-level grammar: the table and everything it holds."""
+
+    @element(sub_tags=f"{_COLUMN_TAGS}, constraint, index",
+             collection_key="name")
+    def table(self, name: str, pkey: str = None, comment: str = None,
+              caption_field: str = None, name_long: str = None,
+              name_plural: str = None, **extra):
+        """A table.
+
+        Args:
+            name: the table name — physical, and this node's key.
+            pkey: comma-joined physical column names, the JSON ``pkeys``.
+                Every name must exist among the table's physical columns.
+            comment: semantic; free description.
+            caption_field: semantic; the column that captions a row.
+            name_long: semantic; human label.
+            name_plural: semantic; human label, plural form.
+        """
+        ...
+
+    @element(sub_tags="relation[0:1]",
+             _meta={"projects_column": True, "projects_relation": True})
+    def column(self, name: str, dtype: DTYPE = None, size: str = None,
+               notnull: bool = False, unique: bool = False,
+               indexed: bool = False, sqldefault: str = None,
+               sql_type: str = None, extra_sql: str = None,
+               generated_expression: str = None, comment: str = None,
+               name_long: str = None, name_short: str = None,
+               group: str = None, **extra):
+        """A physical column — the only element that projects as a column.
+
+        Args:
+            name: the column name — physical, and this node's key.
+            dtype: Genro normalized type code. Absent, the renderer
+                defaults to ``'A'`` when ``size`` is given, else ``'T'``.
+            size: ``'n'`` or ``'min:max'`` character size.
+            notnull: NOT NULL. Pkey members get it from their pkey
+                membership, not from this flag.
+            unique: single-column UNIQUE. A redundant one on a
+                single-column pkey is dropped by the renderer.
+            indexed: sugar — the renderer materializes a real index item
+                (``structure-1.0`` has no ``indexed`` column attribute).
+                A column carrying a foreign key is always indexed.
+            sqldefault: SQL DEFAULT expression.
+            sql_type: native type, the escape hatch; wins over ``dtype``.
+            extra_sql: verbatim tail of the column definition.
+            generated_expression: GENERATED ALWAYS AS expression.
+            comment: physical; the column comment.
+            name_long: semantic; human label.
+            name_short: semantic; human label, short form.
+            group: semantic; field-group key.
+        """
+        ...
+
+    @element(sub_tags="")
+    def aliasColumn(self, name: str, relation_path: str,
+                    name_long: str = None, group: str = None, **extra):
+        """A virtual column projecting a related column. Never physical.
+
+        An alias reads through a relation that already exists, so it never
+        carries one of its own.
+
+        Args:
+            name: the alias name.
+            relation_path: ``@relation.column`` path to the source column.
+            name_long: semantic; human label.
+            group: semantic; field-group key.
+        """
+        ...
+
+    @element(sub_tags="")
+    def formulaColumn(self, name: str, sql_formula: str = None,
+                      select: str = None, exists: str = None,
+                      dtype: DTYPE = None, name_long: str = None,
+                      group: str = None, **extra):
+        """A virtual column defined by SQL. Never physical.
+
+        Args:
+            name: the column name.
+            sql_formula: an expression over the row's own columns.
+            select: a scalar sub-select.
+            exists: an EXISTS predicate.
+            dtype: the resulting type code.
+            name_long: semantic; human label.
+            group: semantic; field-group key.
+        """
+        ...
+
+    @element(sub_tags="")
+    def subQueryColumn(self, name: str, query: str, mode: str = None,
+                       name_long: str = None, group: str = None, **extra):
+        """A virtual column defined by a sub-query. Never physical.
+
+        Args:
+            name: the column name.
+            query: the sub-query.
+            mode: ``json``, ``xml`` or a scalar aggregate. Expanding it is
+                the renderer's job, not grammar-time.
+            name_long: semantic; human label.
+            group: semantic; field-group key.
+        """
+        ...
+
+    @element(sub_tags="")
+    def pyColumn(self, name: str, py_method: str = None, dtype: DTYPE = None,
+                 name_long: str = None, group: str = None, **extra):
+        """A virtual column computed in Python. Never physical.
+
+        Args:
+            name: the column name.
+            py_method: the method computing it; defaults to
+                ``pyColumn_<name>`` on the table class.
+            dtype: the resulting type code.
+            name_long: semantic; human label.
+            group: semantic; field-group key.
+        """
+        ...
+
+    @element(sub_tags="relation[0:1]", _meta={"projects_relation": True})
+    def compositeColumn(self, name: str, columns: str, unique: bool = False,
+                        name_long: str = None, group: str = None, **extra):
+        """N physical columns packed as one navigable key.
+
+        Not a column of its own — it projects no column, only what its
+        members already are. THE mechanism for a multi-column key: a
+        composite FK is a ``relation`` on a compositeColumn, and a
+        composite UNIQUE is ``unique=True`` here.
+
+        Args:
+            name: the composite name (legacy ``composed_of`` carried the
+                members instead).
+            columns: comma-joined member names, all physical columns of
+                the same table.
+            unique: projects a multi-column UNIQUE constraint.
+            name_long: semantic; human label.
+            group: semantic; field-group key.
         """
         ...
 
     @element(sub_tags="", collection_key="name")
-    def index(self, **kwargs):
-        """A table index. Attrs: ``columns`` (ordered), ``unique``,
-        ``method`` (btree/gin/…), ``where`` (partial), ``tablespace``.
+    def constraint(self, name: str, constraint_type: CONSTRAINT_TYPE,
+                   columns: str = None, check_clause: str = None, **extra):
+        """A table constraint.
+
+        Args:
+            name: the constraint name — this node's key.
+            constraint_type: ``'UNIQUE'`` (needs ``columns``) or
+                ``'CHECK'`` (needs ``check_clause``).
+            columns: comma-joined physical column names.
+            check_clause: the CHECK expression.
         """
         ...
 
-    # -- beyond-legacy entities (grammar slots; migrator waves 1-3) -----
+    @element(sub_tags="")
+    def index(self, name: str = None, columns: object = None,
+              unique: bool = False, method: str = None, where: str = None,
+              tablespace: str = None, with_options: dict = None, **extra):
+        """A table index.
 
-    @element(sub_tags="", collection_key="name")
-    def trigger(self, **kwargs):
-        """A table SQL trigger (migrator wave 2). Attrs: ``timing``,
-        ``events``, ``for_each``, ``function_name``, ``function_schema``,
-        ``condition``, ``arguments``. Distinct from the application-level
-        field triggers (``onInserting``/…), which are column/table
-        attributes and do not project.
+        Args:
+            name: the index name.
+            columns: comma-joined names, or a ``{name: None | 'DESC'}``
+                dict when per-column ordering matters.
+            unique: a UNIQUE index.
+            method: access method (``btree``, ``gin``, …).
+            where: partial-index predicate.
+            tablespace: target tablespace.
+            with_options: storage parameters.
         """
         ...
 
-    @element(sub_tags="", collection_key="name")
-    def view(self, **kwargs):
-        """A schema view (migrator wave 1). Attrs: ``definition`` (the
-        SELECT — verbatim or compiled from a query), ``materialized``,
-        ``columns``, ``with_data``, ``depends_on`` (dependency order).
-        """
-        ...
 
-    @element(sub_tags="", collection_key="name")
-    def function(self, **kwargs):
-        """A schema function/procedure (migrator wave 2). Attrs:
-        ``language``, ``return_type``, ``arguments``, ``body``,
-        ``volatility``, ``security``, ``is_procedure``. The migrator keys
-        functions by identity signature ``name(argtypes)`` for overloads;
-        spell types canonically (``integer``, not ``int``).
-        """
-        ...
+class ColumnElements:
+    """Column-level grammar: the relation."""
 
-    @element(sub_tags="", collection_key="name")
-    def sequence(self, **kwargs):
-        """A standalone schema sequence (migrator wave 3). Attrs:
-        ``start_value``, ``increment``, ``min_value``, ``max_value``,
-        ``cycle``, ``owned_by``. Serial/IDENTITY sequences stay implicit
-        (a column ``dtype``), not declared here.
-        """
-        ...
+    @element(sub_tags="")
+    def relation(self, to: str, foreign_key: bool = False,
+                 on_delete: FK_ACTION = None, on_update: FK_ACTION = None,
+                 deferred: bool = False, back_reference: str = None,
+                 one_name: str = None, many_name: str = None,
+                 one_one: bool = False, case_insensitive: bool = False,
+                 **extra):
+        """A relation on a column. Navigable by default, physical on demand.
 
-    @element(sub_tags="", collection_key="name")
-    def dbtype(self, **kwargs):
-        """A custom schema type (migrator wave 3). Attrs: ``type_kind``
-        (``ENUM`` | ``DOMAIN`` | ``COMPOSITE`` | ``RANGE``),
-        ``enum_values``, ``columns``, ``base_type``, ``constraint``. A
-        column typed on a custom dbtype emits ``sql_type=<type name>``.
-        """
-        ...
-
-    # -- database-level entities ----------------------------------------
-
-    @element(sub_tags="", collection_key="name")
-    def extension(self, **kwargs):
-        """A PostgreSQL extension. Rendered ``CREATE EXTENSION IF NOT
-        EXISTS`` — never dropped. Attrs: open (``attributes`` in the JSON).
-        """
-        ...
-
-    @element(sub_tags="", collection_key="name")
-    def eventTrigger(self, **kwargs):
-        """A database-level event trigger. Introspected by the migrator but
-        its handler is a deliberate no-op today (grammar slot).
+        Args:
+            to: the target, ``schema.table.column`` or ``schema.table``
+                (target columns default to the target pkey).
+            foreign_key: emit a physical FK. Only these relations project
+                into the migration JSON.
+            on_delete: referential action on delete.
+            on_update: referential action on update.
+            deferred: INITIALLY DEFERRED.
+            back_reference: semantic; navigable path of the many side.
+            one_name: semantic; human label of the one side.
+            many_name: semantic; human label of the many side.
+            one_one: semantic; the relation is 1:1.
+            case_insensitive: semantic; join case-insensitively.
         """
         ...

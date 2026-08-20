@@ -1,0 +1,3 @@
+Phase 1 chiusa e committata (72dd322): `pytest -q` → 18 passed, `ruff check src tests` clean.
+
+Oltre alla sostituzione `BuilderHandler().add_builder(model)` → `model.create()`, appena la collection è tornata a funzionare è emerso un secondo cambio di contratto in genro-builders 0.23.1: una firma senza `**kwargs` chiude l'insieme degli attributi, quindi ogni elemento rifiutava i propri attributi documentati. Ho ridichiarato `**kwargs` sui metodi element di `modern/elements.py` e `legacy/elements.py` — ripristina il comportamento "open kwargs" che i loro docstring già dichiarano, nessun cambio di vocabolario; Phase 2 sostituisce comunque le firme modern con quelle tipizzate.
