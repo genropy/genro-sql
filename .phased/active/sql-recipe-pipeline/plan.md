@@ -415,7 +415,17 @@ introspection.
   - Details: convergence loop (max 3 cycles) of `ruff check` scoped to the file set -> auto-fix -> ruff -> full test suite; stop early if a cycle makes no progress. Then write `.phased/active/sql-recipe-pipeline/review.md` with three sections: **Auto-fixed** (file, what, tool), **Flagged for human** (file, description, suggested action), **Final state** (linter output, suite result, files reviewed).
   - Done: `review.md` exists in the plan directory with the three sections, `ruff check` zero errors on the file set, full `pytest -q` green.
 
-- [ ] **Phase 10**: Shared helpers dedup and docstring notes (from review.md findings 2, 3, 4, 6)
+- [x] **Phase 10**: Shared helpers dedup and docstring notes (from review.md findings 2, 3, 4, 6)
+  > Done: `pytest -q` -> 80 passed exit 0, `ruff check .` clean; no `def _names`
+  > left in src/ and the only `INDEX_OPTIONS` tuple lives in common.py. The
+  > reader's list branch now strips its items (the one behavioral delta, the
+  > divergence review.md flagged). Emitter docstring records the D7 strictness
+  > decision; `renderer_sql` docstring declares the DDL placeholder. Finding 1
+  > tracked as genropy/genro-sql#1 (blocked by genropy/genro-builders#36);
+  > finding 5 (demo prints) deliberately untouched.
+  > Files: src/genro_sql/modern/common.py, src/genro_sql/modern/migration.py,
+  > src/genro_sql/modern/validators.py, src/genro_sql/modern/reader.py,
+  > src/genro_sql/modern/emitter.py, src/genro_sql/modern/builder.py
   - Pattern reference: `src/genro_sql/modern/migration.py::_names` (the correct `.strip()` variant to promote)
   - Files: src/genro_sql/modern/common.py, src/genro_sql/modern/migration.py, src/genro_sql/modern/validators.py, src/genro_sql/modern/reader.py, src/genro_sql/modern/emitter.py, src/genro_sql/modern/builder.py
   - Decisions: new module `common.py` exposing `split_names(value) -> list[str]` (the migration.py variant, `.strip()` on every branch) and `INDEX_OPTIONS`; the three modules alias-import them (`_names`, `_INDEX_OPTIONS`) so call sites stay untouched — validators binds `_names = staticmethod(split_names)`. Emitter class docstring records the D7 strictness decision (no `# TODO` path can be reached: the strict reader rejects anything outside structure-1.0). `renderer_sql` docstring says it is a placeholder until the DDL slice lands. Findings 1 (tracked as genropy/genro-sql#1) and 5 (demo prints kept) need no code.

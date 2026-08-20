@@ -97,6 +97,10 @@ class SqlBuilder(DbElements, SchemaElements, TableElements, ColumnElements,
 
         Each access returns a new instance: the renderer is meant to be
         ephemeral, used for a single ``render`` call and discarded.
+
+        Today ``SqlRenderer`` is a placeholder that renders nothing: DDL
+        rendering is out of scope until its own slice lands. Database work
+        goes through :class:`~genro_sql.modern.migration.SqlMigrationRenderer`.
         """
         return SqlRenderer(builder=self)
 

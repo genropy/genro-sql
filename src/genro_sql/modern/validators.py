@@ -14,6 +14,8 @@ the whole story instead of stopping at the first offence.
 
 from __future__ import annotations
 
+from .common import split_names
+
 _META_KEY = "_meta"
 
 
@@ -108,16 +110,7 @@ class SqlModelValidator:  # wf:phase-3:new
     def _error(self, path: str, message: str) -> None:  # wf:phase-3:new
         self.errors.append(f"{self._readable(path)}: {message}")
 
-    @staticmethod
-    def _names(value) -> list[str]:  # wf:phase-3:new
-        """Column names out of a comma-joined string or an ordering dict."""
-        if value is None:
-            return []
-        if isinstance(value, dict):
-            return list(value)
-        if isinstance(value, (list, tuple)):
-            return [str(v).strip() for v in value]
-        return [n.strip() for n in str(value).split(",") if n.strip()]
+    _names = staticmethod(split_names)  # wf:phase-10:new
 
     def _pkey_names(self, table: dict) -> list[str]:  # wf:phase-3:new
         return self._names(table["node"].get_attr("pkey"))

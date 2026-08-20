@@ -100,6 +100,11 @@ def _identifier(name: str, taken: set[str]) -> str:  # wf:phase-7:new
 class SqlPythonEmitter:  # wf:phase-7:new
     """Emit the Python recipe that rebuilds a SQL model tree.
 
+    There is deliberately no ``# TODO`` path for "preserved but
+    unrepresentable" features: :class:`~genro_sql.modern.reader.SqlModelReader`
+    is strict and rejects anything outside ``structure-1.0``, so nothing
+    unrepresentable can reach a tree this emitter sees.
+
     Args:
         builder: a created :class:`~genro_sql.modern.builder.SqlBuilder`.
     """

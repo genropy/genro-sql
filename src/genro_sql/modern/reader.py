@@ -40,6 +40,8 @@ from __future__ import annotations
 from genro_sqlmigration.structures import COL_JSON_KEYS
 
 from .builder import SqlBuilder
+from .common import INDEX_OPTIONS as _INDEX_OPTIONS
+from .common import split_names as _names
 
 #: Table attribute keys the grammar can express.
 _TABLE_KEYS = frozenset({"pkeys", "comment"})
@@ -61,9 +63,6 @@ _INDEX_KEYS = frozenset({
     "columns", "index_name", "unique", "method", "where", "tablespace",
     "with_options",
 })
-
-#: Index attributes that travel verbatim from the JSON to the element.
-_INDEX_OPTIONS = ("unique", "method", "where", "tablespace", "with_options")
 
 
 class SqlModelReadError(ValueError):  # wf:phase-6:new
@@ -88,17 +87,6 @@ class _ImportedModel(SqlBuilder):  # wf:phase-6:new
 
     def main(self, root) -> None:  # wf:phase-6:new
         self._populate(root)
-
-
-def _names(value) -> list[str]:  # wf:phase-6:new
-    """Column names out of a list, a dict or a comma-joined string."""
-    if value is None:
-        return []
-    if isinstance(value, dict):
-        return list(value)
-    if isinstance(value, (list, tuple)):
-        return [str(item) for item in value]
-    return [name.strip() for name in str(value).split(",") if name.strip()]
 
 
 class SqlModelReader:  # wf:phase-6:new

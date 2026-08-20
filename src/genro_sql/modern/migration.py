@@ -40,24 +40,12 @@ from genro_sqlmigration.structures import (
     new_table_item,
 )
 
+from .common import INDEX_OPTIONS as _INDEX_OPTIONS
+from .common import split_names as _names
 from .validators import SqlModelValidator
 
 #: Relation attributes that reach the JSON, mapped to their contract key.
 _RELATION_ACTIONS = ("on_delete", "on_update")
-
-#: Index attributes that reach the JSON when truthy.
-_INDEX_OPTIONS = ("unique", "method", "where", "tablespace", "with_options")
-
-
-def _names(value) -> list[str]:  # wf:phase-4:new
-    """Column names out of a comma-joined string, a dict or a sequence."""
-    if value is None:
-        return []
-    if isinstance(value, dict):
-        return list(value)
-    if isinstance(value, (list, tuple)):
-        return [str(item).strip() for item in value]
-    return [name.strip() for name in str(value).split(",") if name.strip()]
 
 
 class SqlMigrationRenderer:  # wf:phase-4:new
