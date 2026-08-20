@@ -165,7 +165,7 @@ introspection.
   > builder put `BuilderBase` first — no name collision today (13 element
   > names checked against BuilderBase).
 
-- [ ] **Phase 3**: Domain validators on the complete tree
+- [x] **Phase 3**: Domain validators on the complete tree
   - Pattern reference: `../genro-sqlmigration/src/genro_sqlmigration/validation.py` (error accumulation, all-errors-together reporting, readable paths)
   - Files: src/genro_sql/modern/validators.py, src/genro_sql/modern/builder.py, tests/test_grammar.py
   - Decisions:
@@ -182,6 +182,28 @@ introspection.
     - Validation runs on demand (renderer calls it at its boundary in Phase 4); grammar-time containment stays the framework's job (`validate_source`).
   - Details: implement validators.py walking `builder.source` with Bag queries; wire `validate_model()`; copy the Phase 3 contract tests into tests/ and make them pass.
   - Done: contract tests `tests/test_wf_phase3_validators.py` pass; `pytest -q` exits 0.
+  > Done: contract tests 11/11 green on the first run (byte-identical copy
+  > verified), `pytest -q` -> 46 passed, `ruff check src tests` clean.
+  > `SqlModelValidator.validate()` collects the tree once (tables, column
+  > family, composites, constraints, indexes, relations), then runs the eight
+  > checks accumulating every violation; `SqlModelValidationError` renders them
+  > one per line, each prefixed by the readable path (the `db` root label is
+  > replaced by the database name, so paths read `d.s.t.author_id` as the
+  > contract requires). Relation targets are resolved once and cached, so the
+  > back_reference check never re-reports a broken target. Check 3
+  > (foreign_key on virtual columns) is a validator-side backstop: the grammar
+  > already forbids the insertion (`sub_tags=""`), which is what the contract
+  > test asserts.
+  > Files: src/genro_sql/modern/validators.py, src/genro_sql/modern/builder.py,
+  > pyproject.toml, tests/test_wf_phase3_validators.py
+  > Review: (1) `pyproject.toml` gained a `per-file-ignores` entry silencing
+  > F841 on `tests/test_wf_phase*.py`: the Phase 3 contract file binds
+  > `fc = t.formulaColumn(...)` without using it, and the contract is read-only
+  > for the executing phase — the alternative was editing a contract into lint
+  > compliance. (2) the declared-attribute set for check 7 is read from
+  > `type(builder)._class_schema` (`declared_names`), a genro-builders internal
+  > — the only introspection point for it today; Phase 8 reads the same
+  > structure.
 
 - [ ] **Phase 4**: SqlMigrationRenderer — source tree to normalized JSON
   - Pattern reference: `../genro-sqlmigration/src/genro_sqlmigration/json_producer.py` (the projection twin: same factories, same normalization rules)

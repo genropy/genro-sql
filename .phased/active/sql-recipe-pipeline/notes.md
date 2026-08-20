@@ -42,3 +42,22 @@
   address the tree with `Bag.__getitem__` (value semantics) where they need
   `Bag.get_node`, and one expects `validate_source()` to report a
   max-cardinality violation that genro-builders raises at insertion instead.
+
+## Phase 3
+
+- Error paths are built from the `name` attributes, not from the node labels:
+  the db node carries the fixed label `db` (it is not a name-keyed collection),
+  so the readable path substitutes the database name in first position. The
+  contract asserts `d.s.t`, and consumers of the message read model names, not
+  grammar labels.
+- Relation target resolution is memoized per relation path. Without it the
+  back_reference check re-resolves and a single unresolvable `to` is reported
+  twice, which breaks the "one violation, one line" contract of the message.
+- The `x_` rule (D2) reads the declared parameter names from
+  `SqlBuilder._class_schema`'s `declared_names` attribute rather than from
+  `inspect.signature` on the element functions: the schema already carries the
+  post-decoration set, and Phase 8's doc generator reads the same place.
+- Ruff `per-file-ignores` for `tests/test_wf_phase*.py` (F841) instead of
+  touching the read-only contract file. Rejected alternative: adding `# noqa`
+  to the contract copy, which would make the in-tree copy diverge from the plan
+  copy and defeat the byte-identical check.

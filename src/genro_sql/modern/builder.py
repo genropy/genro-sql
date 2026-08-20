@@ -15,6 +15,7 @@ from genro_builders.builder.base import SOURCE_ROOT
 
 from .elements import ColumnElements, DbElements, SchemaElements, TableElements
 from .renderer import SqlRenderer
+from .validators import SqlModelValidator
 
 
 class SqlSourceBag(SourceBag):  # wf:phase-2:new
@@ -80,6 +81,15 @@ class SqlBuilder(DbElements, SchemaElements, TableElements, ColumnElements,
                     (node.fullpath, ["relation: at most one per column"]),
                 )
         return problems
+
+    def validate_model(self):  # wf:phase-3:new
+        """Run the domain validation on this model and return it.
+
+        Convenience over ``SqlModelValidator().validate(self)``; raises
+        :class:`~genro_sql.modern.validators.SqlModelValidationError`
+        listing every violation.
+        """
+        return SqlModelValidator().validate(self)
 
     @property
     def renderer_sql(self) -> SqlRenderer:
