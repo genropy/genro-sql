@@ -1,5 +1,7 @@
 {
   "foreman": "wf:sql-recipe-pipeline:foreman",
-  "since": "2026-08-20T11:05:00+02:00",
-  "history": []
+  "since": "2026-08-20T14:35:00+02:00",
+  "history": [
+    {"foreman": "wf:sql-recipe-pipeline:foreman", "deposed": "2026-08-20T14:35:00+02:00"}
+  ]
 }
