@@ -7,7 +7,6 @@ placements raise), never auto-generated labels or node internals.
 """
 
 import pytest
-from genro_builders.builder import BuilderHandler
 
 from genro_sql import SqlBuilder
 
@@ -19,7 +18,7 @@ class _Model(SqlBuilder):
 
 def _mount():
     model = _Model()
-    BuilderHandler().add_builder(model)  # add_builder calls create()
+    model.create()
     return model
 
 

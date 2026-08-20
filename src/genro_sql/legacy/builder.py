@@ -23,8 +23,6 @@ class LegacySqlBuilder(BuilderBase, LegacySqlElements):
 
 
 if __name__ == "__main__":
-    from genro_builders.builder import BuilderHandler
-
     class _Demo(LegacySqlBuilder):
         def main(self, root):
             pkg = root.packages().package(name="glbl", sqlschema="glbl")
@@ -35,6 +33,5 @@ if __name__ == "__main__":
             fk.relation(related_column="glbl.user.id", relation_name="children")
 
     model = _Demo()
-    BuilderHandler().add_builder(model)
     model.create()
     print("source tree:", model.source)

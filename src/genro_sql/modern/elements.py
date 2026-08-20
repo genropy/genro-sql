@@ -61,13 +61,13 @@ class SqlElements:
     # -- structure ------------------------------------------------------
 
     @element(sub_tags="schema, extension, eventTrigger", collection_key="name")
-    def db(self):
+    def db(self, **kwargs):
         """Database root. ``name`` -> the JSON ``entity_name`` (dbname)."""
         ...
 
     @element(sub_tags="table, view, function, sequence, dbtype",
              collection_key="name")
-    def schema(self):
+    def schema(self, **kwargs):
         """A database schema (legacy 'package').
 
         Physical: ``sqlschema``, ``sqlprefix``, ``multi_tenant``.
@@ -77,7 +77,7 @@ class SqlElements:
 
     @element(sub_tags=f"{_COLUMN_TAGS}, constraint, index, trigger",
              collection_key="name")
-    def table(self):
+    def table(self, **kwargs):
         """A table.
 
         Physical: ``pkey`` (comma-joined physical column names, the JSON
@@ -91,7 +91,7 @@ class SqlElements:
     # -- column family (each carries at most one relation) --------------
 
     @element(sub_tags="relation[:1]")
-    def column(self):
+    def column(self, **kwargs):
         """A physical column.
 
         Physical attrs projected to the migrator JSON (``COL_JSON_KEYS``):
@@ -106,14 +106,14 @@ class SqlElements:
         ...
 
     @element(sub_tags="relation[:1]")
-    def aliasColumn(self):
+    def aliasColumn(self, **kwargs):
         """A virtual column that projects a related column. Attr:
         ``relation_path`` (``@rel.column``). Does not project physically.
         """
         ...
 
     @element(sub_tags="relation[:1]")
-    def formulaColumn(self):
+    def formulaColumn(self, **kwargs):
         """A virtual column defined by SQL. One of ``sql_formula`` /
         ``select`` / ``exists``; ``dtype`` (default ``'A'``). Does not
         project physically.
@@ -121,7 +121,7 @@ class SqlElements:
         ...
 
     @element(sub_tags="relation[:1]")
-    def subQueryColumn(self):
+    def subQueryColumn(self, **kwargs):
         """A virtual column defined by a sub-query. Attrs: ``query``,
         ``mode`` (``json`` | ``xml`` | scalar-aggregate). Mode expansion is
         the renderer's job, not grammar-time (§3 q7). Does not project
@@ -130,7 +130,7 @@ class SqlElements:
         ...
 
     @element(sub_tags="relation[:1]")
-    def pyColumn(self):
+    def pyColumn(self, **kwargs):
         """A virtual column computed in Python. Attr: ``py_method``
         (default ``pyColumn_<name>`` on the table class). Does not project
         physically.
@@ -138,7 +138,7 @@ class SqlElements:
         ...
 
     @element(sub_tags="relation[:1]")
-    def compositeColumn(self):
+    def compositeColumn(self, **kwargs):
         """A column packing N physical columns as one navigable key
         (first-class, §2.2). Attr: ``columns`` (comma-joined member
         names). THE mechanism for composite pkey / unique / FK: a composite
@@ -151,7 +151,7 @@ class SqlElements:
     # -- relation (declared on any column kind) -------------------------
 
     @element(sub_tags="")
-    def relation(self):
+    def relation(self, **kwargs):
         """A relation on a column. Logical/navigable by default; the
         physical FK is opt-in (``foreign_key=True``, §2.4).
 
@@ -170,7 +170,7 @@ class SqlElements:
     # -- secondary structures -------------------------------------------
 
     @element(sub_tags="", collection_key="name")
-    def constraint(self):
+    def constraint(self, **kwargs):
         """A multi-column table constraint. ``constraint_type`` is
         ``'UNIQUE'`` (with ``columns``) or ``'CHECK'`` (with
         ``check_clause``). Single-column unique is the ``unique`` column
@@ -179,7 +179,7 @@ class SqlElements:
         ...
 
     @element(sub_tags="", collection_key="name")
-    def index(self):
+    def index(self, **kwargs):
         """A table index. Attrs: ``columns`` (ordered), ``unique``,
         ``method`` (btree/gin/…), ``where`` (partial), ``tablespace``.
         """
@@ -188,7 +188,7 @@ class SqlElements:
     # -- beyond-legacy entities (grammar slots; migrator waves 1-3) -----
 
     @element(sub_tags="", collection_key="name")
-    def trigger(self):
+    def trigger(self, **kwargs):
         """A table SQL trigger (migrator wave 2). Attrs: ``timing``,
         ``events``, ``for_each``, ``function_name``, ``function_schema``,
         ``condition``, ``arguments``. Distinct from the application-level
@@ -198,7 +198,7 @@ class SqlElements:
         ...
 
     @element(sub_tags="", collection_key="name")
-    def view(self):
+    def view(self, **kwargs):
         """A schema view (migrator wave 1). Attrs: ``definition`` (the
         SELECT — verbatim or compiled from a query), ``materialized``,
         ``columns``, ``with_data``, ``depends_on`` (dependency order).
@@ -206,7 +206,7 @@ class SqlElements:
         ...
 
     @element(sub_tags="", collection_key="name")
-    def function(self):
+    def function(self, **kwargs):
         """A schema function/procedure (migrator wave 2). Attrs:
         ``language``, ``return_type``, ``arguments``, ``body``,
         ``volatility``, ``security``, ``is_procedure``. The migrator keys
@@ -216,7 +216,7 @@ class SqlElements:
         ...
 
     @element(sub_tags="", collection_key="name")
-    def sequence(self):
+    def sequence(self, **kwargs):
         """A standalone schema sequence (migrator wave 3). Attrs:
         ``start_value``, ``increment``, ``min_value``, ``max_value``,
         ``cycle``, ``owned_by``. Serial/IDENTITY sequences stay implicit
@@ -225,7 +225,7 @@ class SqlElements:
         ...
 
     @element(sub_tags="", collection_key="name")
-    def dbtype(self):
+    def dbtype(self, **kwargs):
         """A custom schema type (migrator wave 3). Attrs: ``type_kind``
         (``ENUM`` | ``DOMAIN`` | ``COMPOSITE`` | ``RANGE``),
         ``enum_values``, ``columns``, ``base_type``, ``constraint``. A
@@ -236,14 +236,14 @@ class SqlElements:
     # -- database-level entities ----------------------------------------
 
     @element(sub_tags="", collection_key="name")
-    def extension(self):
+    def extension(self, **kwargs):
         """A PostgreSQL extension. Rendered ``CREATE EXTENSION IF NOT
         EXISTS`` — never dropped. Attrs: open (``attributes`` in the JSON).
         """
         ...
 
     @element(sub_tags="", collection_key="name")
-    def eventTrigger(self):
+    def eventTrigger(self, **kwargs):
         """A database-level event trigger. Introspected by the migrator but
         its handler is a deliberate no-op today (grammar slot).
         """

@@ -31,13 +31,10 @@ class SqlBuilder(BuilderBase, SqlElements):
 
 
 if __name__ == "__main__":
-    from genro_builders.builder import BuilderHandler
-
     class _Demo(SqlBuilder):
         def main(self, root):
             pass  # grammar not defined yet: empty model
 
     model = _Demo()
-    BuilderHandler().add_builder(model)
     model.create()
     print("source tree:", model.source)

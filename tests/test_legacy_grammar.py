@@ -9,7 +9,6 @@ legacy tree shape: explicit plural containers
 """
 
 import pytest
-from genro_builders.builder import BuilderHandler
 
 from genro_sql import LegacySqlBuilder
 
@@ -21,7 +20,7 @@ class _Model(LegacySqlBuilder):
 
 def _mount():
     model = _Model()
-    BuilderHandler().add_builder(model)  # add_builder calls create()
+    model.create()
     return model
 
 

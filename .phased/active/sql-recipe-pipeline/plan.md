@@ -75,12 +75,23 @@ introspection.
 
 ## Work Plan
 
-- [ ] **Phase 1**: Restore the green baseline (BuilderHandler -> create())
+- [x] **Phase 1**: Restore the green baseline (BuilderHandler -> create())
   - Pattern reference: `../genro-builders/src/genro_builders/examples/cookbook/01_own_dialect/own_dialect.py` (the `page.create()` run pattern)
   - Files: src/genro_sql/modern/builder.py, src/genro_sql/legacy/builder.py, tests/test_grammar.py, tests/test_legacy_grammar.py, tests/test_skeleton.py
   - Decisions: genro-builders removed `BuilderHandler` (contract v0.9.0: the datastore belongs to the builder). Replacement is exactly `model.create()`; the docstring/example blocks in the two builder.py files are updated to the same idiom. No other API change.
   - Details: replace every `BuilderHandler().add_builder(model)` with `model.create()`; drop the now-dead imports; update the module docstrings that show the old idiom. Run the full suite.
   - Done: `pytest -q` exits 0 from the repo root (all collected tests pass, no collection errors).
+  > Done: `pytest -q` -> 18 passed, `ruff check src tests` clean. Every
+  > `BuilderHandler().add_builder(model)` replaced by `model.create()`, dead
+  > imports dropped. A second genro-builders 0.23.1 contract change surfaced once
+  > collection worked: a signature without `**kwargs` now closes the attribute set,
+  > so every element rejected its own documented attributes. Both elements.py files
+  > declare `**kwargs` on their element methods again — restoring the "open kwargs"
+  > behaviour their docstrings already state, no vocabulary change. Phase 2 replaces
+  > the modern signatures with the typed ones.
+  > Files: src/genro_sql/modern/builder.py, src/genro_sql/legacy/builder.py,
+  > src/genro_sql/modern/elements.py, src/genro_sql/legacy/elements.py,
+  > tests/test_grammar.py, tests/test_legacy_grammar.py, tests/test_skeleton.py
 
 - [ ] **Phase 2**: Class-scoped grammar with typed signatures
   - Pattern reference: `../genro-builders/src/genro_builders/examples/cookbook/01_own_dialect/own_dialect.py` (typed element signatures, cardinalities, collection_key); `src/genro_sql/legacy/elements.py` (attribute vocabulary to cover); current `src/genro_sql/modern/elements.py` docstrings (attribute semantics)

@@ -96,7 +96,7 @@ class LegacySqlElements:
 
     @element(sub_tags="package", collection_key="name",
              node_label="packages")
-    def packages(self):
+    def packages(self, **kwargs):
         """The container of the packages — the root of a legacy model
         tree. Fixed label ``packages``; children are keyed by ``name``
         (path: ``packages.<pkg>``).
@@ -105,7 +105,7 @@ class LegacySqlElements:
 
     @element(sub_tags="table", collection_key="name",
              node_label="tables", parent_tags="package")
-    def tables(self):
+    def tables(self, **kwargs):
         """The container of a package's tables. Fixed label ``tables``;
         children are keyed by ``name`` (path:
         ``packages.<pkg>.tables.<table>``).
@@ -114,7 +114,7 @@ class LegacySqlElements:
 
     @element(sub_tags="column", collection_key="name",
              node_label="columns", parent_tags="table")
-    def columns(self):
+    def columns(self, **kwargs):
         """The container of a table's **physical** columns. Fixed label
         ``columns``; children are keyed by ``name``. Its keyspace is its
         own: a virtual column or an index may carry the same name without
@@ -124,7 +124,7 @@ class LegacySqlElements:
 
     @element(sub_tags=_VIRTUAL_TAGS, collection_key="name",
              node_label="virtual_columns", parent_tags="table")
-    def virtual_columns(self):
+    def virtual_columns(self, **kwargs):
         """The container of a table's **virtual** (non-persisted)
         columns — the whole family: ``virtual_column``, ``aliasColumn``,
         ``formulaColumn``, ``pyColumn``, ``subQueryColumn``,
@@ -135,7 +135,7 @@ class LegacySqlElements:
         ...
 
     @element(sub_tags="index", node_label="indexes", parent_tags="table")
-    def indexes(self):
+    def indexes(self, **kwargs):
         """The container of a table's indexes. Fixed label ``indexes``.
         No natural key: children are auto-labelled (``index_0``, …), so
         an ``index`` needs no ``name`` — the migrator generates a
@@ -148,7 +148,7 @@ class LegacySqlElements:
     @element(sub_tags="tables[:1]", parent_tags="packages")
     def package(self, name: str, sqlschema: str | None = None,
                 comment: str | None = None, name_short: str | None = None,
-                name_long: str | None = None, name_full: str | None = None):
+                name_long: str | None = None, name_full: str | None = None, **kwargs):
         """A package: the **logical** namespace grouping tables (legacy
         `package`, doc `01` §1.1). It often coincides with an SQL schema
         (package ``fatt`` → schema ``fatt``) but the two are distinct
@@ -170,7 +170,7 @@ class LegacySqlElements:
               lastTS: str | None = None, rowcaption: str | None = None,
               sqlname: str | None = None, sqlschema: str | None = None,
               comment: str | None = None, name_short: str | None = None,
-              name_long: str | None = None, name_full: str | None = None):
+              name_long: str | None = None, name_full: str | None = None, **kwargs):
         """A table. Its children are the three containers (``columns``,
         ``virtual_columns``, ``indexes``), at most one each.
 
@@ -197,7 +197,7 @@ class LegacySqlElements:
                name_full: str | None = None, group: str | None = None,
                onInserting: str | None = None, onUpdating: str | None = None,
                onDeleting: str | None = None, localized=None,
-               variant: str | None = None):
+               variant: str | None = None, **kwargs):
         """A physical (persisted) column — the one that becomes a real
         table column in the DDL (doc `01` §1.6).
 
@@ -220,7 +220,7 @@ class LegacySqlElements:
     def virtual_column(self, name: str, relation_path: str | None = None,
                        sql_formula: str | None = None, select=None,
                        exists=None, py_method: str | None = None,
-                       variant: str | None = None):
+                       variant: str | None = None, **kwargs):
         """A virtual (non-persisted) column — the generic base of the
         virtual family (doc `01` §1.7). It is not stored; it is computed
         or navigated at query time. Exactly one of the computation attrs
@@ -241,7 +241,7 @@ class LegacySqlElements:
         ...
 
     @element(sub_tags="relation[:1]", parent_tags="virtual_columns")
-    def aliasColumn(self, name: str, relation_path: str):
+    def aliasColumn(self, name: str, relation_path: str, **kwargs):
         """A virtual column that simply **projects a column of a related
         table** through a relation path (doc `01` §1.8). Attr:
         ``relation_path`` (``@relation.column``, e.g. ``@customer_id.name``
@@ -252,7 +252,7 @@ class LegacySqlElements:
 
     @element(sub_tags="relation[:1]", parent_tags="virtual_columns")
     def formulaColumn(self, name: str, sql_formula: str | None = None,
-                      select=None, exists=None, dtype: str | None = None):
+                      select=None, exists=None, dtype: str | None = None, **kwargs):
         """A virtual column defined by an **SQL expression** evaluated by
         the database (doc `01` §1.14). One of ``sql_formula`` (an
         expression over ``$col`` tokens, e.g. ``upper($name)``), ``select``
@@ -263,7 +263,7 @@ class LegacySqlElements:
         ...
 
     @element(sub_tags="relation[:1]", parent_tags="virtual_columns")
-    def pyColumn(self, name: str, py_method: str | None = None):
+    def pyColumn(self, name: str, py_method: str | None = None, **kwargs):
         """A virtual column **computed in Python** on the loaded record
         (doc `01` §1.15), for values SQL cannot express. Attr:
         ``py_method`` — the name of the method on the table's Python class
@@ -275,7 +275,7 @@ class LegacySqlElements:
         ...
 
     @element(sub_tags="relation[:1]", parent_tags="virtual_columns")
-    def subQueryColumn(self, name: str, query=None, mode: str | None = None):
+    def subQueryColumn(self, name: str, query=None, mode: str | None = None, **kwargs):
         """A virtual column defined by a **correlated sub-query** that
         aggregates related rows (doc `01` §1.13). Attrs: ``query`` (the
         sub-query definition) and ``mode``:
@@ -295,7 +295,7 @@ class LegacySqlElements:
 
     @element(sub_tags="relation[:1]", parent_tags="virtual_columns")
     def compositeColumn(self, name: str, columns: str | None = None,
-                        static: bool | None = None):
+                        static: bool | None = None, **kwargs):
         """A virtual column that **packs N physical columns into one
         named, navigable key** (doc `01` §1.10). Attr: ``columns`` (the
         comma-joined member column names, all of which must be real
@@ -322,7 +322,7 @@ class LegacySqlElements:
                  onDelete: str | None = None, onDelete_sql: str | None = None,
                  deferred: bool | None = None,
                  relation_name: str | None = None,
-                 onDuplicate: str | None = None):
+                 onDuplicate: str | None = None, **kwargs):
         """A relationship, declared as a child of the column that carries
         the key (doc `01` §1.18). It can sit on **any** column kind —
         physical or virtual — and there is at most one per column:
@@ -359,7 +359,7 @@ class LegacySqlElements:
     def index(self, columns: str | None = None, name: str | None = None,
               unique: bool | None = None, method: str | None = None,
               where: str | None = None, tablespace: str | None = None,
-              with_options: dict | None = None):
+              with_options: dict | None = None, **kwargs):
         """A table index (doc `01` §1.17).
 
         ``columns`` — the indexed column(s), comma-joined and ordered;
