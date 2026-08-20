@@ -57,7 +57,7 @@ from genro_sql import SqlBuilder
 '''
 
 
-def _literal(value) -> str:  # wf:phase-7:new
+def _literal(value) -> str:
     """A Python literal for an attribute value, double-quoted by preference.
 
     ``repr`` is the authority on escaping; the single quotes it prefers are
@@ -78,7 +78,7 @@ def _literal(value) -> str:  # wf:phase-7:new
     return repr(value)
 
 
-def _identifier(name: str, taken: set[str]) -> str:  # wf:phase-7:new
+def _identifier(name: str, taken: set[str]) -> str:
     """A free Python identifier for a SQL name.
 
     SQL names live in their own namespace — they are emitted as string
@@ -97,7 +97,7 @@ def _identifier(name: str, taken: set[str]) -> str:  # wf:phase-7:new
     return unique
 
 
-class SqlPythonEmitter:  # wf:phase-7:new
+class SqlPythonEmitter:
     """Emit the Python recipe that rebuilds a SQL model tree.
 
     There is deliberately no ``# TODO`` path for "preserved but
@@ -109,10 +109,10 @@ class SqlPythonEmitter:  # wf:phase-7:new
         builder: a created :class:`~genro_sql.modern.builder.SqlBuilder`.
     """
 
-    def __init__(self, builder) -> None:  # wf:phase-7:new
+    def __init__(self, builder) -> None:
         self.builder = builder
 
-    def emit(self, class_name: str = "ImportedDatabase") -> str:  # wf:phase-7:new
+    def emit(self, class_name: str = "ImportedDatabase") -> str:
         """Render the model as an importable module.
 
         Args:
@@ -141,7 +141,7 @@ class SqlPythonEmitter:  # wf:phase-7:new
 
     # -- traversal -------------------------------------------------------
 
-    def _emit_db(self, node, body) -> None:  # wf:phase-7:new
+    def _emit_db(self, node, body) -> None:
         body.append(self._statement("db", "root", node))
         children = self._children(node)
         for child in children:
@@ -152,14 +152,14 @@ class SqlPythonEmitter:  # wf:phase-7:new
                 body.append("")
                 self._emit_schema(child, body)
 
-    def _emit_schema(self, node, body) -> None:  # wf:phase-7:new
+    def _emit_schema(self, node, body) -> None:
         variable = _identifier(node.get_attr("name"), self._taken)
         body.append(self._statement(variable, "db", node))
         for table in self._children(node):
             body.append("")
             self._emit_table(table, variable, body)
 
-    def _emit_table(self, node, schema_variable, body) -> None:  # wf:phase-7:new
+    def _emit_table(self, node, schema_variable, body) -> None:
         variable = _identifier(node.get_attr("name"), self._taken)
         body.append(self._statement(variable, schema_variable, node))
         for child in self._children(node):
@@ -174,14 +174,14 @@ class SqlPythonEmitter:  # wf:phase-7:new
                 body.append(self._statement(None, owner, relation))
 
     @staticmethod
-    def _children(node) -> list:  # wf:phase-7:new
+    def _children(node) -> list:
         """The node's child nodes, in the order the recipe built them."""
         children = node.value
         return list(children) if children is not None else []
 
     # -- statements ------------------------------------------------------
 
-    def _statement(self, variable, target, node) -> str:  # wf:phase-7:new
+    def _statement(self, variable, target, node) -> str:
         """One call, assigned to ``variable`` when something reads it back."""
         head = f"{target}.{node.node_tag}("
         if variable:
@@ -190,7 +190,7 @@ class SqlPythonEmitter:  # wf:phase-7:new
                      for name, value in self._arguments(node)]
         return self._wrap(head, arguments)
 
-    def _arguments(self, node) -> list[tuple[str, object]]:  # wf:phase-7:new
+    def _arguments(self, node) -> list[tuple[str, object]]:
         """The node's attributes in signature order, extras last.
 
         The element signature is the canonical order — the same order the
@@ -204,7 +204,7 @@ class SqlPythonEmitter:  # wf:phase-7:new
                    if name in attributes]
         return ordered + sorted(attributes.items())
 
-    def _signature(self, tag) -> tuple[str, ...]:  # wf:phase-7:new
+    def _signature(self, tag) -> tuple[str, ...]:
         """Parameter names of an element, in declaration order."""
         if tag not in self._signatures:
             marker = getattr(type(self.builder), tag)
@@ -217,7 +217,7 @@ class SqlPythonEmitter:  # wf:phase-7:new
         return self._signatures[tag]
 
     @staticmethod
-    def _wrap(head, arguments) -> str:  # wf:phase-7:new
+    def _wrap(head, arguments) -> str:
         """The call on one line, or with its arguments packed and indented."""
         single = f"{head}{', '.join(arguments)})"
         if len(single) + 8 <= _WIDTH:

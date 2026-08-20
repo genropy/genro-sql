@@ -48,17 +48,17 @@ from .validators import SqlModelValidator
 _RELATION_ACTIONS = ("on_delete", "on_update")
 
 
-class SqlMigrationRenderer:  # wf:phase-4:new
+class SqlMigrationRenderer:
     """Render a built SQL model as the normalized ``structure-1.0`` JSON.
 
     Args:
         builder: a created :class:`~genro_sql.modern.builder.SqlBuilder`.
     """
 
-    def __init__(self, builder) -> None:  # wf:phase-4:new
+    def __init__(self, builder) -> None:
         self.builder = builder
 
-    def render(self) -> dict:  # wf:phase-4:new
+    def render(self) -> dict:
         """Project the model, a fresh structure each call.
 
         The model is domain-validated first and the result is passed
@@ -89,7 +89,7 @@ class SqlMigrationRenderer:  # wf:phase-4:new
 
     # -- collection ------------------------------------------------------
 
-    def _collect(self) -> None:  # wf:phase-4:new
+    def _collect(self) -> None:
         """Index the source tree by schema and table, once per render."""
         self._db_name = None
         self._schemas: list[str] = []
@@ -131,7 +131,7 @@ class SqlMigrationRenderer:  # wf:phase-4:new
 
     # -- projection ------------------------------------------------------
 
-    def _table_item(self, schema_name, table_name, table) -> dict:  # wf:phase-4:new
+    def _table_item(self, schema_name, table_name, table) -> dict:
         item = new_table_item(schema_name, table_name)
         pkey = table["node"].get_attr("pkey")
         if pkey:
@@ -156,7 +156,7 @@ class SqlMigrationRenderer:  # wf:phase-4:new
         return item
 
     def _column_item(self, schema_name, table_name, column_name, node,
-                     pkey_columns) -> dict:  # wf:phase-4:new
+                     pkey_columns) -> dict:
         attributes = {
             key: node.get_attr(key) for key in COL_JSON_KEYS
             if node.get_attr(key) is not None
@@ -172,7 +172,7 @@ class SqlMigrationRenderer:  # wf:phase-4:new
         )
 
     def _fill_relations(self, schema_name, table_name, table,
-                        item) -> list[list[str]]:  # wf:phase-4:new
+                        item) -> list[list[str]]:
         """Project the foreign keys; return the columns they must index."""
         indexed: list[list[str]] = []
         for owner_name, node in table["relations"]:
@@ -204,7 +204,7 @@ class SqlMigrationRenderer:  # wf:phase-4:new
                 indexed.append(columns)
         return indexed
 
-    def _resolve_target(self, node) -> tuple[str, str, list[str]]:  # wf:phase-4:new
+    def _resolve_target(self, node) -> tuple[str, str, list[str]]:
         """``relation.to`` as ``(schema, table, columns)``.
 
         A two-part target means the target's pkey columns; a three-part
@@ -221,7 +221,7 @@ class SqlMigrationRenderer:  # wf:phase-4:new
         return parts[0], parts[1], _names(target["node"].get_attr("pkey"))
 
     def _fill_constraints(self, schema_name, table_name, table,
-                          item) -> None:  # wf:phase-4:new
+                          item) -> None:
         for node in table["constraints"]:
             if node.get_attr("constraint_type") == "CHECK":
                 constraint = new_constraint_item(
@@ -244,7 +244,7 @@ class SqlMigrationRenderer:  # wf:phase-4:new
             item["constraints"].setdefault(constraint["entity_name"], constraint)
 
     def _fill_indexes(self, schema_name, table_name, table,
-                      item) -> None:  # wf:phase-4:new
+                      item) -> None:
         for node in table["indexes"]:
             columns = node.get_attr("columns")
             if not isinstance(columns, dict):
@@ -260,7 +260,7 @@ class SqlMigrationRenderer:  # wf:phase-4:new
             item["indexes"][index["entity_name"]] = index
 
     def _fill_auto_indexes(self, schema_name, table_name, item, column_sets,
-                           pkey_columns) -> None:  # wf:phase-4:new
+                           pkey_columns) -> None:
         """Materialize the indexes ``indexed=True`` and foreign keys imply.
 
         An explicit ``index`` over the same columns wins — it carries a

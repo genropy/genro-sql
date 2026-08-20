@@ -11,7 +11,7 @@ by construction instead of by copy.
 INDEX_OPTIONS = ("unique", "method", "where", "tablespace", "with_options")
 
 
-def split_names(value) -> list[str]:  # wf:phase-10:new
+def split_names(value) -> list[str]:
     """Column names out of a comma-joined string, a dict or a sequence."""
     if value is None:
         return []

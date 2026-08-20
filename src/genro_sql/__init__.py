@@ -28,7 +28,7 @@ __all__ = [
 ]
 
 
-def __getattr__(name: str):  # wf:phase-4:new
+def __getattr__(name: str):
     """Resolve the names that need an optional dependency, on first use."""
     if name in ("SqlMigrationRenderer", "SqlModelReader"):
         from . import modern

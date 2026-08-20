@@ -65,7 +65,7 @@ _INDEX_KEYS = frozenset({
 })
 
 
-class SqlModelReadError(ValueError):  # wf:phase-6:new
+class SqlModelReadError(ValueError):
     """The JSON carries something the modern grammar cannot express.
 
     Args:
@@ -73,33 +73,33 @@ class SqlModelReadError(ValueError):  # wf:phase-6:new
         message: what is wrong with it.
     """
 
-    def __init__(self, path: str, message: str) -> None:  # wf:phase-6:new
+    def __init__(self, path: str, message: str) -> None:
         self.path = path
         super().__init__(f"{path}: {message}")
 
 
-class _ImportedModel(SqlBuilder):  # wf:phase-6:new
+class _ImportedModel(SqlBuilder):
     """Anonymous recipe whose document is built by the reader."""
 
-    def __init__(self, populate) -> None:  # wf:phase-6:new
+    def __init__(self, populate) -> None:
         self._populate = populate
         super().__init__()
 
-    def main(self, root) -> None:  # wf:phase-6:new
+    def main(self, root) -> None:
         self._populate(root)
 
 
-class SqlModelReader:  # wf:phase-6:new
+class SqlModelReader:
     """Build a SQL model tree out of a normalized ``structure-1.0`` dict.
 
     Args:
         normalized: the migration JSON, ``{'root': {...}}``.
     """
 
-    def __init__(self, normalized: dict) -> None:  # wf:phase-6:new
+    def __init__(self, normalized: dict) -> None:
         self.normalized = normalized
 
-    def to_builder(self) -> SqlBuilder:  # wf:phase-6:new
+    def to_builder(self) -> SqlBuilder:
         """De-normalize the structure into a created, validated model.
 
         Returns:
@@ -117,7 +117,7 @@ class SqlModelReader:  # wf:phase-6:new
 
     # -- document --------------------------------------------------------
 
-    def _build(self, root_node) -> None:  # wf:phase-6:new
+    def _build(self, root_node) -> None:
         root = self.normalized["root"]
         if root.get("event_triggers"):
             raise SqlModelReadError(
@@ -145,7 +145,7 @@ class SqlModelReader:  # wf:phase-6:new
             self._fill_indexes(table)
 
     def _add_table(self, schema_node, schema_name, table_name,
-                   table) -> dict:  # wf:phase-6:new
+                   table) -> dict:
         path = self._table_path(schema_name, table_name)
         attributes = table.get("attributes") or {}
         self._check_keys(path, attributes, _TABLE_KEYS)
@@ -178,7 +178,7 @@ class SqlModelReader:  # wf:phase-6:new
                 "columns": columns, "composites": composites}
 
     def _add_column(self, table_node, path, column_name, column,
-                    pkey):  # wf:phase-6:new
+                    pkey):
         attributes = dict(column.get("attributes") or {})
         self._check_keys(
             f"{path}.columns.{column_name}", attributes, COL_JSON_KEYS,
@@ -189,7 +189,7 @@ class SqlModelReader:  # wf:phase-6:new
 
     # -- composites ------------------------------------------------------
 
-    def _plan_composites(self, root) -> None:  # wf:phase-6:new
+    def _plan_composites(self, root) -> None:
         """Collect every composite the relations and constraints need.
 
         Both sides of a multi-column foreign key need one, and the target
@@ -214,7 +214,7 @@ class SqlModelReader:  # wf:phase-6:new
                 for name, constraint in table.get("constraints", {}).items():
                     self._plan_constraint_composite(key, name, constraint)
 
-    def _plan_relation_composites(self, key, relation) -> None:  # wf:phase-6:new
+    def _plan_relation_composites(self, key, relation) -> None:
         attributes = relation["attributes"]
         columns = _names(attributes.get("columns"))
         if len(columns) > 1:
@@ -226,7 +226,7 @@ class SqlModelReader:  # wf:phase-6:new
             self._need_composite(target, related)
 
     def _plan_constraint_composite(self, key, name,
-                                   constraint) -> None:  # wf:phase-6:new
+                                   constraint) -> None:
         attributes = constraint["attributes"]
         if attributes.get("constraint_type") == "CHECK":
             return
@@ -235,7 +235,7 @@ class SqlModelReader:  # wf:phase-6:new
         self._need_composite(key, _names(attributes.get("columns")),
                              unique=True)
 
-    def _need_composite(self, key, columns, unique=False) -> str:  # wf:phase-6:new
+    def _need_composite(self, key, columns, unique=False) -> str:
         """Register the deterministic composite over ``columns`` (D4)."""
         name = "_".join(columns)
         planned = self._composites[key].setdefault(
@@ -246,7 +246,7 @@ class SqlModelReader:  # wf:phase-6:new
 
     # -- second pass -----------------------------------------------------
 
-    def _fill_relations(self, table) -> None:  # wf:phase-6:new
+    def _fill_relations(self, table) -> None:
         indexed = {
             tuple(_names(index["attributes"].get("columns")))
             for index in table["json"].get("indexes", {}).values()
@@ -270,7 +270,7 @@ class SqlModelReader:  # wf:phase-6:new
                 kwargs["indexed"] = False
             owner.relation(**kwargs)
 
-    def _target(self, attributes) -> str:  # wf:phase-6:new
+    def _target(self, attributes) -> str:
         """``relation.to`` for a foreign key, in its shortest exact form."""
         schema_name = attributes.get("related_schema")
         table_name = attributes.get("related_table")
@@ -281,7 +281,7 @@ class SqlModelReader:  # wf:phase-6:new
             return f"{schema_name}.{table_name}"
         return f"{schema_name}.{table_name}.{'_'.join(columns)}"
 
-    def _fill_constraints(self, table) -> None:  # wf:phase-6:new
+    def _fill_constraints(self, table) -> None:
         for name, constraint in table["json"].get("constraints", {}).items():
             attributes = constraint["attributes"]
             path = f"{table['path']}.constraints.{name}"
@@ -298,7 +298,7 @@ class SqlModelReader:  # wf:phase-6:new
                     columns=",".join(_names(attributes.get("columns"))),
                 )
 
-    def _fill_indexes(self, table) -> None:  # wf:phase-6:new
+    def _fill_indexes(self, table) -> None:
         for name, index in table["json"].get("indexes", {}).items():
             attributes = index["attributes"]
             self._check_keys(
@@ -314,11 +314,11 @@ class SqlModelReader:  # wf:phase-6:new
     # -- strictness ------------------------------------------------------
 
     @staticmethod
-    def _table_path(schema_name, table_name) -> str:  # wf:phase-6:new
+    def _table_path(schema_name, table_name) -> str:
         return f"root.schemas.{schema_name}.tables.{table_name}"
 
     @staticmethod
-    def _check_keys(path, attributes, declared) -> None:  # wf:phase-6:new
+    def _check_keys(path, attributes, declared) -> None:
         """Refuse any attribute key outside the ``structure-1.0`` set."""
         for key in attributes:
             if key not in declared:

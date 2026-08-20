@@ -18,7 +18,7 @@ from .renderer import SqlRenderer
 from .validators import SqlModelValidator
 
 
-class SqlSourceBag(SourceBag):  # wf:phase-2:new
+class SqlSourceBag(SourceBag):
     """Source bag whose bracket access is name addressing over NODES.
 
     ``model.source["db.public.author"]`` returns the grammar node — its
@@ -37,7 +37,7 @@ class SqlSourceBag(SourceBag):  # wf:phase-2:new
     or walk from a node's ``.value`` instead.
     """
 
-    def __getitem__(self, path: str) -> BagNode | None:  # wf:phase-2:new
+    def __getitem__(self, path: str) -> BagNode | None:
         return self.get_node(path)
 
 
@@ -54,13 +54,13 @@ class SqlBuilder(DbElements, SchemaElements, TableElements, ColumnElements,
     _name = "sqlmodel"
     _default_render_mode = "sql"
 
-    def __init__(self, name: str | None = None) -> None:  # wf:phase-2:new
+    def __init__(self, name: str | None = None) -> None:
         super().__init__(name)
         source = SqlSourceBag(builder=self)
         self._sourceroot[SOURCE_ROOT] = source
         self.source = source
 
-    def validate_source(self) -> list[tuple[str, list[str]]]:  # wf:phase-2:new
+    def validate_source(self) -> list[tuple[str, list[str]]]:
         """Extend the framework report with the dialect's containment rules.
 
         The framework reports unmet minima and enforces maxima at insertion;
@@ -82,7 +82,7 @@ class SqlBuilder(DbElements, SchemaElements, TableElements, ColumnElements,
                 )
         return problems
 
-    def validate_model(self):  # wf:phase-3:new
+    def validate_model(self):
         """Run the domain validation on this model and return it.
 
         Convenience over ``SqlModelValidator().validate(self)``; raises

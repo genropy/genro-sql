@@ -19,24 +19,24 @@ from .common import split_names
 _META_KEY = "_meta"
 
 
-class SqlModelValidationError(ValueError):  # wf:phase-3:new
+class SqlModelValidationError(ValueError):
     """Every domain violation found in one model, one per line.
 
     Args:
         errors: the violation messages, already path-prefixed.
     """
 
-    def __init__(self, errors: list[str]) -> None:  # wf:phase-3:new
+    def __init__(self, errors: list[str]) -> None:
         self.errors = list(errors)
         super().__init__(
             "invalid SQL model:\n" + "\n".join(f"  {e}" for e in self.errors),
         )
 
 
-class SqlModelValidator:  # wf:phase-3:new
+class SqlModelValidator:
     """Referential validation of a built :class:`SqlBuilder` tree."""
 
-    def validate(self, builder):  # wf:phase-3:new
+    def validate(self, builder):
         """Validate ``builder``'s source tree.
 
         Args:
@@ -69,7 +69,7 @@ class SqlModelValidator:  # wf:phase-3:new
 
     # -- collection ------------------------------------------------------
 
-    def _collect(self, builder) -> None:  # wf:phase-3:new
+    def _collect(self, builder) -> None:
         for path, node in builder.source.walk():
             parts = path.split(".")
             tag = node.node_tag
@@ -100,24 +100,24 @@ class SqlModelValidator:  # wf:phase-3:new
 
     # -- helpers ---------------------------------------------------------
 
-    def _readable(self, path: str) -> str:  # wf:phase-3:new
+    def _readable(self, path: str) -> str:
         """Path with the ``db`` root label replaced by the database name."""
         parts = path.split(".")
         if parts and self._db_name:
             parts[0] = self._db_name
         return ".".join(parts)
 
-    def _error(self, path: str, message: str) -> None:  # wf:phase-3:new
+    def _error(self, path: str, message: str) -> None:
         self.errors.append(f"{self._readable(path)}: {message}")
 
-    _names = staticmethod(split_names)  # wf:phase-10:new
+    _names = staticmethod(split_names)
 
-    def _pkey_names(self, table: dict) -> list[str]:  # wf:phase-3:new
+    def _pkey_names(self, table: dict) -> list[str]:
         return self._names(table["node"].get_attr("pkey"))
 
     # -- checks ----------------------------------------------------------
 
-    def _check_attributes(self, builder) -> None:  # wf:phase-3:new
+    def _check_attributes(self, builder) -> None:
         """D2: any attribute outside the signature must start with ``x_``."""
         schema = type(builder)._class_schema
         for path, node in builder.source.walk():
@@ -135,7 +135,7 @@ class SqlModelValidator:  # wf:phase-3:new
                     f"{', '.join(sorted(declared))}",
                 )
 
-    def _check_pkey(self, table: dict) -> None:  # wf:phase-3:new
+    def _check_pkey(self, table: dict) -> None:
         for name in self._pkey_names(table):
             if name not in table["columns"]:
                 self._error(
@@ -143,7 +143,7 @@ class SqlModelValidator:  # wf:phase-3:new
                     f"pkey column '{name}' is not a physical column of the table",
                 )
 
-    def _check_composites(self, table: dict) -> None:  # wf:phase-3:new
+    def _check_composites(self, table: dict) -> None:
         for name, node in table["composites"].items():
             members = self._names(node.get_attr("columns"))
             if not members:
@@ -159,7 +159,7 @@ class SqlModelValidator:  # wf:phase-3:new
                         "column of the table",
                     )
 
-    def _check_constraints(self, table: dict) -> None:  # wf:phase-3:new
+    def _check_constraints(self, table: dict) -> None:
         for path, node in table["constraints"]:
             kind = node.get_attr("constraint_type")
             name = node.get_attr("name")
@@ -179,7 +179,7 @@ class SqlModelValidator:  # wf:phase-3:new
                         "column of the table",
                     )
 
-    def _check_indexes(self, table: dict) -> None:  # wf:phase-3:new
+    def _check_indexes(self, table: dict) -> None:
         for path, node in table["indexes"]:
             for column in self._names(node.get_attr("columns")):
                 if column not in table["columns"]:
@@ -189,7 +189,7 @@ class SqlModelValidator:  # wf:phase-3:new
                         "of the table",
                     )
 
-    def _resolve_target(self, path: str, node):  # wf:phase-3:new
+    def _resolve_target(self, path: str, node):
         """Target table and columns of ``relation.to``, errors reported.
 
         A three-part target names a physical column, or the
@@ -238,7 +238,7 @@ class SqlModelValidator:  # wf:phase-3:new
                 return None
         return table_key, columns
 
-    def _check_relation(self, path: str, node) -> None:  # wf:phase-3:new
+    def _check_relation(self, path: str, node) -> None:
         parts = path.split(".")
         owner = self._tables.get((parts[1], parts[2]), {}).get(
             "family", {}).get(parts[3]) if len(parts) == 5 else None
@@ -267,7 +267,7 @@ class SqlModelValidator:  # wf:phase-3:new
                 f"({', '.join(target_columns)})",
             )
 
-    def _check_back_references(self) -> None:  # wf:phase-3:new
+    def _check_back_references(self) -> None:
         seen: dict[tuple, str] = {}
         for path, node in self._relations:
             back_reference = node.get_attr("back_reference")

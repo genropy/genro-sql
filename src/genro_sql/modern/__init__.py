@@ -40,7 +40,7 @@ _MIGRATION_NAMES = {
 }
 
 
-def __getattr__(name: str):  # wf:phase-4:new
+def __getattr__(name: str):
     module_name = _MIGRATION_NAMES.get(name)
     if module_name is None:
         raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
