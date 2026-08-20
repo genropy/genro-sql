@@ -208,3 +208,24 @@
 - uneventful run, 2/2 phases. Phase 8 in light mode (3m04s), Phase 9 xhigh
   (7m40s): 5 auto-fixes, 6 human flags in review.md, suite 80 passed with the
   4 postgresql-marked tests verified live.
+
+## Quality check — interrupted, handoff state (2026-08-20)
+
+- Step 2 QA pass: DONE, both readability checks passed by the user (emitted
+  recipe + docs/grammar.md).
+- Step 3 naming review: DONE — accept-all, 80 markers stripped, commit 2948f49.
+- Step 5 review: Panel ran (16 agents). 4 findings CONFIRMED by skeptic
+  majority — all in reader.py, all on introspected-database input the contract
+  tests never exercise: (1) FK constraint_name silently dropped, round-trip
+  law false for named FKs; (2) DEFERRABLE INITIALLY IMMEDIATE read back as
+  INITIALLY DEFERRED; (3) synthesized composite names "_".join can collide,
+  one FK silently overwrites another; (4) single-member unique composite
+  renders JSON the reader always refuses. Full detail with skeptic votes and
+  the 30 unverified findings: panel-findings.md (same directory).
+- Step 5 decision (fix first vs stamp as-is) NOT taken — user out of credits.
+- Step 6 stamp: NOT written. The next session re-runs /quality-check (or
+  resumes at the decision): stamp must record review panel, QA done, findings
+  4 confirmed.
+- Handoff: foreman title wf:sql-recipe-pipeline:foreman released implicitly —
+  the next machine's /resume-workflow will find the title unclaimed and take
+  command per protocol.
